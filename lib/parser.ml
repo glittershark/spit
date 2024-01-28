@@ -70,6 +70,15 @@ let%test_module _ =
       parse_and_print "'(foo 'bar)";
       [%expect {| (Quote (List ((Atom foo) (Quote (Atom bar))))) |}]
 
+    let%expect_test "comments" =
+      parse_and_print {|
+        ;; this is a function
+        (.lambda x
+          ; with a comment
+        x) ; and another comment
+      |};
+      [%expect {| (List ((Atom .lambda) (Atom x) (Atom x))) |}]
+
     (* Failed parsing *)
 
     let%expect_test "illegal list" =

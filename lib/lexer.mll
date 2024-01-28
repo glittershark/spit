@@ -47,6 +47,7 @@ rule next_token = parse
   | '`' { BACKTICK }
   | ",@" { COMMA_AT }
   | ',' { COMMA }
+  | ';' { comment lexbuf }
 
   | "\""
     { Buffer.reset string_buff;
@@ -68,6 +69,11 @@ rule next_token = parse
   | ident as atom { ATOM atom }
 
   | _ as chr { illegal chr }
+
+and comment = parse
+  | newline { Lexing.new_line lexbuf; next_token lexbuf }
+  | _ { comment lexbuf }
+
 and string = parse
   | '"' { () }
   | eof
