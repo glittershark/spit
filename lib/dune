@@ -1,0 +1,12 @@
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules menhir_parser))
+
+(library
+ (name spit)
+ (libraries core nice_parser)
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests))

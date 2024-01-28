@@ -1,0 +1,34 @@
+#+title: Spit
+
+#+begin_quote
+Watch out, they spit!
+  - The genie
+#+end_quote
+
+Some kind of Lisp interpreter in OCaml.
+
+This repository contains literally the first lines of OCaml I've ever written
+(ever!), so it might be truly awful. Let's see what happens here
+
+* Demo
+
+#+begin_src
+❯ dune exec bin/main.exe
+spit -> (.def x 1)
+Nil
+
+spit -> x
+(Int 1)
+
+spit -> (+ x x)
+(Int 2)
+
+spit -> (+ x x 4)
+(Int 6)
+
+spit -> (.def plus-1 (.lambda x (+ (car x) 1)))
+Nil
+
+spit -> (plus-1 1)
+(Int 2)
+#+end_src

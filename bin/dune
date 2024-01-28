@@ -1,0 +1,12 @@
+(executable
+ (public_name spit)
+ (name main)
+ (libraries
+  spit
+  base
+  core
+  core_unix.command_unix
+  core_unix.filename_unix
+  linenoise)
+ (preprocess
+  (pps ppx_jane)))
