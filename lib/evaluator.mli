@@ -15,6 +15,7 @@ exception Error of error
 
 module Value : sig
   type fn = t list -> t
+
   and t =
     | Nil
     | Cons of (t * t)
@@ -51,5 +52,6 @@ module Env : sig
   val copy : t -> t
 end
 
-val stdlib : Env.t
+val builtins : Env.t
+val stdlib : unit -> Env.t
 val eval : ?env:Env.t -> Ast.sexp -> Value.t

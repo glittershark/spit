@@ -147,7 +147,7 @@ module Env = struct
     end)
 end
 
-module Stdlib = struct
+module Builtins = struct
   let check_args_count n args =
     if not (List.length args = n) then
       raise (Error (WrongArgCount (List.length args, n)))
@@ -181,9 +181,9 @@ module Stdlib = struct
       ]
 end
 
-let stdlib = Stdlib.env
+let builtins = Builtins.env
 
-let rec eval ?(env = Stdlib.env) = function
+let rec eval ?(env = stdlib ()) = function
   | Ast.Atom id -> (
       let ident = Ident.Ident id in
       match Env.lookup env ident with
@@ -234,6 +234,11 @@ let rec eval ?(env = Stdlib.env) = function
       let v2 = eval ~env e2 in
       Value.Cons (v1, v2)
   | Ast.Quote v -> eval_quote v
+
+and stdlib () =
+  let env = builtins in
+  Stdlib_lisp.src |> Parser.parse_string |> List.map ~f:(eval ~env) |> ignore;
+  env
 
 and eval_let ~env = function
   | [] -> Value.Nil
@@ -287,7 +292,8 @@ and eval_quote = function
   | Ast.Literal (Ast.LString s) -> Value.String s
   | Ast.List l -> Value.list (List.map ~f:eval_quote l)
   | Ast.Cons (x, y) -> Value.Cons (eval_quote x, eval_quote y)
-  | Ast.Quote v -> Value.Cons (Value.Sym (Ident.Ident ".quote"), eval_quote v)
+  | Ast.Quote v ->
+      Value.list [ Value.Sym (Ident.Ident ".quote"); eval_quote v; Value.Nil ]
 
 let%test_module _ =
   (module struct

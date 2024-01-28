@@ -71,7 +71,8 @@ let%test_module _ =
       [%expect {| (Quote (List ((Atom foo) (Quote (Atom bar))))) |}]
 
     let%expect_test "comments" =
-      parse_and_print {|
+      parse_and_print
+        {|
         ;; this is a function
         (.lambda x
           ; with a comment

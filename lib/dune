@@ -4,6 +4,14 @@
 (menhir
  (modules menhir_parser))
 
+(rule
+ (with-stdout-to
+  stdlib_lisp.ml
+  (progn
+   (echo "let src = {|")
+   (cat lisp/stdlib.lisp)
+   (echo "|}"))))
+
 (library
  (name spit)
  (libraries core nice_parser)

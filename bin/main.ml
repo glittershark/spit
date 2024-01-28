@@ -21,7 +21,7 @@ let repl () =
 
   LNoise.history_load ~filename:".spit-history" |> ignore;
   LNoise.history_set ~max_length:10000 |> ignore;
-  let env = Spit.Evaluator.stdlib in
+  let env = Spit.Evaluator.stdlib () in
   user_input "spit -> " (fun input ->
       if String.equal input "quit" then exit 0;
       LNoise.history_add input |> ignore;
