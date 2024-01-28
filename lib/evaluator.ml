@@ -51,6 +51,7 @@ module Value = struct
 
   let list = List.fold_right ~f:(fun x y -> Cons (x, y)) ~init:Nil
   let of_literal = function Ast.LInt i -> Int i | Ast.LString s -> String s
+  let of_bool = function true -> Sym (Ident.of_s "t") | false -> Nil
 
   let type_name = function
     | Nil | Cons _ -> "list"
@@ -96,6 +97,13 @@ module Env = struct
 
   let lookup env v =
     Stack.find_map env.vars ~f:(fun t -> Hashtbl.find !t.vars v)
+
+  let vars env =
+    let open List.Monad_infix in
+    env.vars |> Stack.to_list
+    >>= (fun frame -> Hashtbl.keys !frame.vars)
+    |> Hash_set.of_list (module Ident)
+    |> Hash_set.to_list
 
   let set env id v = Hashtbl.set !(Stack.top_exn env.vars).vars ~key:id ~data:v
   let set_toplevel env id v = Hashtbl.set !(env.toplevel).vars ~key:id ~data:v
@@ -193,15 +201,18 @@ let rec eval ?(env = stdlib ()) = function
   | Ast.List lst ->
       let rec special_form (Ident.Ident form) args =
         match form with
+        | "vars" -> Some (eval_vars ~env)
         | "let" -> Some (eval_let ~env args)
         | "def" -> Some (eval_def ~env args)
         | "lambda" -> Some (eval_lambda ~env args)
         | "make-macro" -> Some (eval_make_macro ~env args)
+        | "is-macro" -> Some (eval_is_macro ~env args)
         | "quote" ->
             args |> List.hd
             |> Option.value_or_thunk ~default:(fun () ->
                    raise (Error (WrongArgCount (List.length args, 1))))
             |> eval_quote |> Some
+        | "macroexpand-1" -> Some (eval_macroexpand_1 ~env args)
         | _ -> None
       and maybe_eval_special_form = function
         | Ast.Atom id :: t when String.is_prefix id ~prefix:"." ->
@@ -239,6 +250,9 @@ and stdlib () =
   let env = builtins in
   Stdlib_lisp.src |> Parser.parse_string |> List.map ~f:(eval ~env) |> ignore;
   env
+
+and eval_vars ~env =
+  Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
 
 and eval_let ~env = function
   | [] -> Value.Nil
@@ -286,6 +300,12 @@ and eval_make_macro ~env = function
   | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
+and eval_is_macro ~env = function
+  | Ast.Atom vname :: [] ->
+      vname |> Ident.of_s |> Env.is_macro env |> Value.of_bool
+  | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
+  | args -> raise (Error (WrongArgCount (List.length args, 1)))
+
 and eval_quote = function
   | Ast.Atom s -> Value.Sym (Ident.Ident s)
   | Ast.Literal (Ast.LInt i) -> Value.Int i
@@ -294,6 +314,17 @@ and eval_quote = function
   | Ast.Cons (x, y) -> Value.Cons (eval_quote x, eval_quote y)
   | Ast.Quote v ->
       Value.list [ Value.Sym (Ident.Ident ".quote"); eval_quote v; Value.Nil ]
+
+and eval_macroexpand_1 ~env = function
+  | Ast.List (Ast.Atom name :: args) :: []
+    when Env.is_macro env (Ident.of_s name) ->
+      let macro =
+        Env.lookup env (Ident.of_s name)
+        |> Option.value_exn |> Value.as_function
+      in
+      List.map ~f:eval_quote args |> macro
+  | [ ast ] -> eval_quote ast
+  | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
 let%test_module _ =
   (module struct
