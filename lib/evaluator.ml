@@ -71,6 +71,11 @@ module Value = struct
   let as_symbol = function Sym s -> s | v -> raise (wrong_type v "symbol")
   let as_function = function Fun f -> f | v -> raise (wrong_type v "function")
 
+  let rec as_list = function
+    | Cons (x, y) -> as_list y |> Option.map ~f:(fun l -> x :: l)
+    | Nil -> Some []
+    | _ -> None
+
   let rec unquote =
     let open Ast in
     function
@@ -283,14 +288,31 @@ and eval_def ~env = function
   | args -> raise (Error (WrongArgCount (List.length args, 2)))
 
 and eval_lambda ~env = function
-  | [ Ast.Atom arg; body ] ->
+  | [ ((Ast.Atom _ | Ast.List _) as arg); body ] ->
       let closure = Env.copy env in
+      let rec bind_env v = function
+        | Ast.Atom argname -> Env.set closure (Ident.Ident argname) v
+        | Ast.List argnames -> (
+            match Value.as_list v with
+            | Some l -> (
+                match
+                  List.map2 argnames l ~f:(fun argname v -> bind_env v argname)
+                with
+                | List.Or_unequal_lengths.Ok _ -> ()
+                | List.Or_unequal_lengths.Unequal_lengths ->
+                    raise
+                      (Error
+                         (WrongArgCount (List.length l, List.length argnames))))
+            | None ->
+                raise (Error (WrongType (Value.type_name v, "proper list"))))
+        | _ -> failwith "unreachable"
+      in
       Value.Fun
         (fun args ->
           Env.in_frame closure (fun () ->
-              Env.set closure (Ident.Ident arg) (Value.list args);
+              bind_env (Value.list args) arg;
               eval ~env:closure body))
-  | [ arg1; _ ] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
+  | [ arg; _ ] -> raise (Error (WrongType (Ast.type_name arg, "list or atom")))
   | args -> raise (Error (WrongArgCount (List.length args, 2)))
 
 and eval_make_macro ~env = function
@@ -392,6 +414,14 @@ let%test_module _ =
     let%expect_test ".lambda" =
       eval_print "((.lambda x (car x)) 1)";
       [%expect {| (Int 1) |}]
+
+    let%expect_test "lambda with list args" =
+      eval_print "((.lambda (x) x) 1)";
+      [%expect {| (Int 1) |}]
+
+    let%expect_test "lambda with multiple args" =
+      eval_print "((.lambda (x y) (+ x y)) 1 2)";
+      [%expect {| (Int 3) |}]
 
     let%expect_test "simplest possible macros" =
       eval_print
