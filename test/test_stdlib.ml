@@ -8,25 +8,51 @@ let eval_expr s =
 let eval_print s =
   eval_expr s |> Printf.printf !"%{sexp:Spit.Evaluator.Value.t}"
 
-let%expect_test "and" =
-  eval_print "(and* 't 1)";
-  [%expect {| (Int 1) |}];
+let%test_module "ints" =
+  (module struct
+    let%expect_test "minus" =
+      eval_print "(- 1 1)";
+      [%expect {| (Int 0) |}]
+    end)
 
-  eval_print "(and nil 1 2)";
-  [%expect {| Nil |}];
+let%test_module "lists" =
+  (module struct
+    let%expect_test "nth" =
+      eval_print "(nth (list 1 2 3) 0)";
+      [%expect {| (Int 1) |}];
 
-  eval_print "(and 1 2 3 4)";
-  [%expect {| (Int 4) |}]
+      eval_print "(nth (list 1 2 3) 1)";
+      [%expect {| (Int 2) |}];
 
-let%expect_test "or" =
-  eval_print "(or* 't 1)";
-  [%expect {| (Sym (Ident t)) |}];
+      eval_print "(nth (list 1 2 3) 2)";
+      [%expect {| (Int 3) |}];
 
-  eval_print "(or nil 1 2)";
-  [%expect {| (Int 1) |}];
+      eval_print "(nth (list 1 2 3) 3)";
+      [%expect {| Nil |}];
+  end)
 
-  eval_print "(or nil nil 2)";
-  [%expect {| (Int 2) |}];
+let%test_module "booleans" =
+  (module struct
+    let%expect_test "and" =
+      eval_print "(and* 't 1)";
+      [%expect {| (Int 1) |}];
 
-  eval_print "(or nil nil nil)";
-  [%expect {| Nil |}];
+      eval_print "(and nil 1 2)";
+      [%expect {| Nil |}];
+
+      eval_print "(and 1 2 3 4)";
+      [%expect {| (Int 4) |}]
+
+    let%expect_test "or" =
+      eval_print "(or* 't 1)";
+      [%expect {| (Sym (Ident t)) |}];
+
+      eval_print "(or nil 1 2)";
+      [%expect {| (Int 1) |}];
+
+      eval_print "(or nil nil 2)";
+      [%expect {| (Int 2) |}];
+
+      eval_print "(or nil nil nil)";
+      [%expect {| Nil |}]
+  end)
