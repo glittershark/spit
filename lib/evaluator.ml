@@ -92,6 +92,8 @@ module Value = struct
     | Sym (Ident.Ident n) -> Ast.Atom n
     | Fun _ -> raise (Error CantUnquoteFunctions)
 
+  let is_truthy = function Nil -> false | _ -> true
+
   let rec compare x y =
     match (x, y) with
     | Nil, Nil -> 0
@@ -309,6 +311,7 @@ let rec eval ?(env = stdlib ()) = function
                    raise (Error (WrongArgCount (List.length args, 1))))
             |> eval_quote |> Some
         | "macroexpand-1" -> Some (eval_macroexpand_1 ~env args)
+        | "if" -> Some (eval_if ~env args)
         | _ -> None
       and maybe_eval_special_form = function
         | Ast.Atom id :: t when String.is_prefix id ~prefix:"." ->
@@ -439,6 +442,12 @@ and eval_macroexpand_1 ~env = function
   | [ ast ] -> eval_quote ast
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
+and eval_if ~env = function
+  | [ cond_e; then_e; else_e ] ->
+      let cond = eval ~env cond_e in
+      if Value.is_truthy cond then eval ~env then_e else eval ~env else_e
+  | args -> raise (Error (WrongArgCount (List.length args, 3)))
+
 let%test_module _ =
   (module struct
     let () = Printexc.record_backtrace false
@@ -527,4 +536,10 @@ let%test_module _ =
         ((make-id) 1)
       |};
       [%expect {| (Int 1) |}]
+
+    let%expect_test "simple if " =
+      eval_print "(.if 1 'a 'b)";
+      [%expect {| (Sym (Ident a)) |}];
+      eval_print "(.if nil 'a 'b)";
+      [%expect {| (Sym (Ident b)) |}]
   end)
