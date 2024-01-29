@@ -108,7 +108,7 @@ let rec to_string = function
      | None -> Printf.sprintf "(cons %s %s)" (to_string hd) (to_string tl))
   | String s ->
     s |> String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" |> Printf.sprintf "\"%s\""
-  | Sym (Id s) -> Printf.sprintf "'%s" s
+  | Sym (Id s) -> s
   | Fun _ -> "<function>"
 ;;
 
@@ -176,8 +176,13 @@ let%test_module "to_string" =
     ;;
 
     let%expect_test _ =
+      parse_print {| (a b c) |};
+      [%expect {| (a b c) |}]
+    ;;
+
+    let%expect_test _ =
       parse_print {| foobar |};
-      [%expect {| 'foobar |}]
+      [%expect {| foobar |}]
     ;;
 
     let%expect_test _ =

@@ -50,7 +50,7 @@ let%test_module "booleans" =
 
     let%expect_test "or" =
       eval_print "(or* 't 1)";
-      [%expect {| 't |}];
+      [%expect {| t |}];
       eval_print "(or nil 1 2)";
       [%expect {| 1 |}];
       eval_print "(or nil nil 2)";
@@ -65,7 +65,7 @@ let%test_module "booleans" =
       eval_print "(cond nil 1 t 2)";
       [%expect {| 2 |}];
       eval_print "(cond nil 1 nil 2)";
-      [%expect {| 't |}]
+      [%expect {| t |}]
     ;;
   end)
 ;;

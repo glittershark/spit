@@ -285,7 +285,7 @@ let%test_module _ =
 
     let%expect_test "quote" =
       eval_print "'a";
-      [%expect {| 'a |}]
+      [%expect {| a |}]
     ;;
 
     let%expect_test "quasiquote" =
@@ -359,9 +359,9 @@ let%test_module _ =
 
     let%expect_test "simple if " =
       eval_print "(.if 1 'a 'b)";
-      [%expect {| 'a |}];
+      [%expect {| a |}];
       eval_print "(.if nil 'a 'b)";
-      [%expect {| 'b |}]
+      [%expect {| b |}]
     ;;
   end)
 ;;

@@ -1,7 +1,7 @@
   $ spit - <<EOF
   > (=* 1 1)
   > EOF
-  't
+  t
 
   $ spit - <<EOF
   > (=* 1 2)
@@ -11,7 +11,7 @@
   $ spit - <<EOF
   > (<* 1 2)
   > EOF
-  't
+  t
 
   $ spit - <<EOF
   > (>* 1 2)
@@ -21,4 +21,4 @@
   $ spit - <<EOF
   > (>* 2 1)
   > EOF
-  't
+  t
