@@ -5,4 +5,4 @@ Test stdlib defmacro*
   > (my-def x 1)
   > x
   > EOF
-  (Int 1)
+  1

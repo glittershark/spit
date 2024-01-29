@@ -1,14 +1,16 @@
 open Core
+open Spit
 
 let eval_filename filename =
   let ast =
-    if String.equal filename "-" then Spit.Parser.parse_chan In_channel.stdin
-    else Spit.Parser.parse_file filename
+    if String.equal filename "-" then Parser.parse_chan In_channel.stdin
+    else Parser.parse_file filename
   in
-  let ress = List.map ~f:Spit.Evaluator.eval ast in
+  let ress = List.map ~f:Evaluator.eval ast in
   List.last ress
-  |> Option.value ~default:Spit.Value.Nil
-  |> Printf.printf !"%{sexp:Spit.Value.t}"
+  |> Option.value ~default:Value.Nil
+  |> Value.to_string
+  |> print_endline
 
 let repl () =
   let rec user_input prompt cb =
@@ -21,22 +23,20 @@ let repl () =
 
   LNoise.history_load ~filename:".spit-history" |> ignore;
   LNoise.history_set ~max_length:10000 |> ignore;
-  let env = Spit.Evaluator.stdlib () in
+  let env = Evaluator.stdlib () in
   user_input "spit -> " (fun input ->
       if String.equal input "quit" then exit 0;
       LNoise.history_add input |> ignore;
       LNoise.history_save ~filename:".spit-history" |> ignore;
       try
-        let ast = Spit.Parser.parse_string input in
-        match List.map ~f:(Spit.Evaluator.eval ~env) ast with
+        let ast = Parser.parse_string input in
+        match List.map ~f:(Evaluator.eval ~env) ast with
         | [] -> print_endline ""
         | res :: [] ->
-            Printf.sprintf !"%{sexp:Spit.Value.t}\n" res
+            Value.to_string res
             |> print_endline
         | ress ->
-            List.map ress ~f:(fun res ->
-                Printf.sprintf !"%{sexp:Spit.Value.t}\n" res
-                |> print_endline)
+            List.map ress ~f:(fun res -> Value.to_string res |> print_endline)
             |> ignore
       with err ->
         print_string (Stdlib.Printexc.to_string err);
@@ -53,5 +53,5 @@ let command =
        match filename with Some fn -> eval_filename fn | None -> repl ())
 
 let () =
-  Spit.Parser.pp_exceptions ();
+  Parser.pp_exceptions ();
   Command_unix.run ~version:"1.0" ~build_info:"RWO" command

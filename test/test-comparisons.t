@@ -1,24 +1,24 @@
   $ spit - <<EOF
   > (=* 1 1)
   > EOF
-  (Sym (Ident t))
+  't
 
   $ spit - <<EOF
   > (=* 1 2)
   > EOF
-  Nil
+  nil
 
   $ spit - <<EOF
   > (<* 1 2)
   > EOF
-  (Sym (Ident t))
+  't
 
   $ spit - <<EOF
   > (>* 1 2)
   > EOF
-  Nil
+  nil
 
   $ spit - <<EOF
   > (>* 2 1)
   > EOF
-  (Sym (Ident t))
+  't
