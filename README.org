@@ -1,9 +1,9 @@
 #+title: Spit
 
-#+begin_quote
+#+begin_src
 Watch out, they spit!
   - The genie
-#+end_quote
+#+end_src
 
 Some kind of Lisp interpreter in OCaml.
 
