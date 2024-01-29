@@ -1,22 +1,32 @@
 open Core
 open Errors
 
-let check_args_count n args =
-  if not (List.length args = n) then
-    raise (Error (WrongArgCount (List.length args, n)))
+module Helpers = struct
+  let check_args_count n args =
+    if not (List.length args = n) then
+      raise (Error (WrongArgCount (List.length args, n)))
+
+  let singleton f args =
+    check_args_count 1 args;
+    List.hd_exn args |> f
+end
+
+open Helpers
+
+(* Builtin functions *)
 
 let cons args =
   check_args_count 2 args;
   Value.Cons (List.nth_exn args 0, List.nth_exn args 1)
 
-let car args =
-  check_args_count 1 args;
-  let v, _ = List.nth_exn args 0 |> Value.as_cons in
+let car =
+  singleton @@ fun arg ->
+  let v, _ = Value.as_cons arg in
   v
 
-let cdr args =
-  check_args_count 1 args;
-  let _, v = List.nth_exn args 0 |> Value.as_cons in
+let cdr =
+  singleton @@ fun arg ->
+  let _, v = Value.as_cons arg in
   v
 
 let plus args = Value.Int (List.sum (module Int) ~f:Value.as_int args)
@@ -33,24 +43,17 @@ let cmp args =
   check_args_count 2 args;
   Value.Int (Value.compare (List.nth_exn args 0) (List.nth_exn args 1))
 
-let zerop args =
-  check_args_count 1 args;
-  List.nth_exn args 0
-  |> Value.compare (Value.Int 0)
-  |> (fun x -> x = 0)
-  |> Value.of_bool
+let zerop =
+  singleton @@ fun arg ->
+  arg |> Value.compare (Value.Int 0) |> (fun x -> x = 0) |> Value.of_bool
 
-let negp args =
-  check_args_count 1 args;
-  List.nth_exn args 0
-  |> Value.compare (Value.Int 0)
-  |> Int.is_positive |> Value.of_bool
+let negp =
+  singleton @@ fun arg ->
+  arg |> Value.compare (Value.Int 0) |> Int.is_positive |> Value.of_bool
 
-let posp args =
-  check_args_count 1 args;
-  List.nth_exn args 0
-  |> Value.compare (Value.Int 0)
-  |> Int.is_negative |> Value.of_bool
+let posp =
+  singleton @@ fun arg ->
+  arg |> Value.compare (Value.Int 0) |> Int.is_negative |> Value.of_bool
 
 let vars =
   let open Value in
