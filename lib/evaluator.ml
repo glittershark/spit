@@ -1,11 +1,6 @@
 open Base
 open Core
-
-module Ident = struct
-  type t = Ident of string [@@deriving compare, hash, sexp]
-
-  let of_s s = Ident s
-end
+open Ast
 
 type error =
   | UnknownIdentifier of Ident.t
@@ -24,7 +19,7 @@ let () =
        try
          Stdlib.Format.flush_str_formatter () |> ignore;
          match exn with
-         | Error (UnknownIdentifier (Ident.Ident id)) ->
+         | Error (UnknownIdentifier (Ident.Id id)) ->
              sprintf "Unknown identifier %s" id |> Some
          | Error CantUnquoteFunctions ->
              "Cannot unquote function values" |> Some
@@ -89,7 +84,7 @@ module Value = struct
         | expr -> Ast.Cons (unquote hd, expr))
     | Int i -> Ast.Literal (LInt i)
     | String s -> Ast.Literal (LString s)
-    | Sym (Ident.Ident n) -> Ast.Atom n
+    | Sym (Ident.Id n) -> Ast.Atom n
     | Fun _ -> raise (Error CantUnquoteFunctions)
 
   let is_truthy = function Nil -> false | _ -> true
@@ -210,7 +205,7 @@ module Env = struct
   let%test_module _ =
     (module struct
       let%expect_test "toplevel macro" =
-        let x = Ident.Ident "x" in
+        let x = Ident.Id "x" in
         let env = of_vars [] in
         push_frame env;
         set_toplevel env x Value.Nil;
@@ -279,7 +274,7 @@ module Builtins = struct
     |> Int.is_negative |> Value.of_bool
 
   let env =
-    let id n = Ident.Ident n in
+    let id n = Ident.Id n in
     let open Value in
     Env.of_vars
       [
@@ -300,13 +295,13 @@ let builtins = Builtins.env
 
 let rec eval ?(env = stdlib ()) = function
   | Ast.Atom id -> (
-      let ident = Ident.Ident id in
+      let ident = Ident.Id id in
       match Env.lookup env ident with
       | Some v -> v
       | None -> raise (Error (UnknownIdentifier ident)))
   | Ast.Literal lit -> Value.of_literal lit
   | Ast.List lst ->
-      let rec special_form (Ident.Ident form) args =
+      let rec special_form (Ident.Id form) args =
         match form with
         | "vars" -> Some (eval_vars ~env)
         | "let" -> Some (eval_let ~env args)
@@ -324,7 +319,7 @@ let rec eval ?(env = stdlib ()) = function
         | _ -> None
       and maybe_eval_special_form = function
         | Ast.Atom id :: t when String.is_prefix id ~prefix:"." ->
-            special_form (Ident.Ident (String.drop_prefix id 1)) t
+            special_form (Ident.Id (String.drop_prefix id 1)) t
         | _ -> None
       in
 
@@ -335,8 +330,8 @@ let rec eval ?(env = stdlib ()) = function
         List.map ~f:eval_quote args |> macro |> Value.unquote |> eval ~env
       in
       let maybe_eval_macro = function
-        | Ast.Atom id :: args when Env.is_macro env (Ident.Ident id) ->
-            Some (eval_macro (Ident.Ident id) args)
+        | Ast.Atom id :: args when Env.is_macro env (Ident.Id id) ->
+            Some (eval_macro (Ident.Id id) args)
         | _ -> None
       in
 
@@ -374,7 +369,7 @@ and eval_let ~env = function
                   | _ -> raise (Error (WrongType (Ast.type_name vname, "atom")))
                 in
                 let v = eval ~env vexpr in
-                Env.set env (Ident.Ident vname) v
+                Env.set env (Ident.Id vname) v
             | v ->
                 raise
                   (Error (WrongType (Ast.type_name v, "list with two elements"))))
@@ -385,7 +380,7 @@ and eval_let ~env = function
 and eval_def ~env = function
   | [ Ast.Atom vname; expr ] ->
       let value = eval ~env expr in
-      Env.set_toplevel env (Ident.Ident vname) value;
+      Env.set_toplevel env (Ident.Id vname) value;
       Value.Nil
   | [ arg1; _ ] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
   | args -> raise (Error (WrongArgCount (List.length args, 2)))
@@ -394,7 +389,7 @@ and eval_lambda ~env = function
   | [ ((Ast.Atom _ | Ast.List _) as arg); body ] ->
       let closure = Env.copy env in
       let rec bind_env v = function
-        | Ast.Atom argname -> Env.set closure (Ident.Ident argname) v
+        | Ast.Atom argname -> Env.set closure (Ident.Id argname) v
         | Ast.List argnames -> (
             match Value.as_list v with
             | Some l -> (
@@ -420,7 +415,7 @@ and eval_lambda ~env = function
 
 and eval_make_macro ~env = function
   | Ast.Atom vname :: [] ->
-      Env.set_is_macro env (Ident.Ident vname);
+      Env.set_is_macro env (Ident.Id vname);
       Value.Nil
   | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
@@ -432,13 +427,13 @@ and eval_is_macro ~env = function
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
 and eval_quote = function
-  | Ast.Atom s -> Value.Sym (Ident.Ident s)
+  | Ast.Atom s -> Value.Sym (Ident.Id s)
   | Ast.Literal (Ast.LInt i) -> Value.Int i
   | Ast.Literal (Ast.LString s) -> Value.String s
   | Ast.List l -> Value.list (List.map ~f:eval_quote l)
   | Ast.Cons (x, y) -> Value.Cons (eval_quote x, eval_quote y)
   | Ast.Quote v ->
-      Value.list [ Value.Sym (Ident.Ident ".quote"); eval_quote v; Value.Nil ]
+      Value.list [ Value.Sym (Ident.Id ".quote"); eval_quote v; Value.Nil ]
 
 and eval_macroexpand_1 ~env = function
   | Ast.List (Ast.Atom name :: args) :: []
@@ -489,7 +484,7 @@ let%test_module _ =
 
     let%expect_test "quote" =
       eval_print "'a";
-      [%expect {| (Sym (Ident a)) |}]
+      [%expect {| (Sym (Id a)) |}]
 
     let%expect_test ".let" =
       eval_print "(.let ((x 1)) x)";
@@ -548,7 +543,7 @@ let%test_module _ =
 
     let%expect_test "simple if " =
       eval_print "(.if 1 'a 'b)";
-      [%expect {| (Sym (Ident a)) |}];
+      [%expect {| (Sym (Id a)) |}];
       eval_print "(.if nil 'a 'b)";
-      [%expect {| (Sym (Ident b)) |}]
+      [%expect {| (Sym (Id b)) |}]
   end)
