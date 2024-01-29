@@ -21,6 +21,9 @@ sexp:
   | LPAR; es=list(sexp); RPAR { Ast.List es }
   | lit=literal { Ast.Literal lit }
   | QUOT; s=sexp { Ast.Quote s }
+  | BACKTICK; s=sexp { Ast.Quasiquote s }
+  | COMMA; s=sexp { Ast.Unquote s }
+  | COMMA_AT; s=sexp { Ast.UnquoteSplicing s }
   ;
 
 %%

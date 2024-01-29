@@ -76,14 +76,20 @@ end
 let builtins = Env.of_vars Builtins.vars
 
 let rec eval ?(env = stdlib ()) = function
-  | Ast.Atom id -> (
+  | Atom id -> (
       let ident = Ident.Id id in
       match Env.lookup env ident with
       | Some v -> v
       | None -> raise (Error (UnknownIdentifier ident)))
-  | Ast.Literal lit -> Value.of_literal lit
-  | Ast.List lst ->
+  | Literal lit -> Value.of_literal lit
+  | List lst ->
       let rec special_form (Ident.Id form) args =
+        let singleton f =
+          args |> List.hd
+          |> Option.value_or_thunk ~default:(fun () ->
+                 raise (Error (WrongArgCount (List.length args, 1))))
+          |> f |> Some
+        in
         match form with
         | "vars" -> Some (eval_vars ~env)
         | "let" -> Some (eval_let ~env args)
@@ -91,16 +97,13 @@ let rec eval ?(env = stdlib ()) = function
         | "lambda" -> Some (eval_lambda ~env args)
         | "make-macro" -> Some (eval_make_macro ~env args)
         | "is-macro" -> Some (eval_is_macro ~env args)
-        | "quote" ->
-            args |> List.hd
-            |> Option.value_or_thunk ~default:(fun () ->
-                   raise (Error (WrongArgCount (List.length args, 1))))
-            |> Value.quote |> Some
+        | "quote" -> singleton Value.quote
+        | "quasiquote" -> singleton @@ quasiquote ~env
         | "macroexpand-1" -> Some (eval_macroexpand_1 ~env args)
         | "if" -> Some (eval_if ~env args)
         | _ -> None
       and maybe_eval_special_form = function
-        | Ast.Atom id :: t when String.is_prefix id ~prefix:"." ->
+        | Atom id :: t when String.is_prefix id ~prefix:"." ->
             special_form (Ident.Id (String.drop_prefix id 1)) t
         | _ -> None
       in
@@ -112,7 +115,7 @@ let rec eval ?(env = stdlib ()) = function
         List.map ~f:Value.quote args |> macro |> Value.unquote |> eval ~env
       in
       let maybe_eval_macro = function
-        | Ast.Atom id :: args when Env.is_macro env (Ident.Id id) ->
+        | Atom id :: args when Env.is_macro env (Ident.Id id) ->
             Some (eval_macro (Ident.Id id) args)
         | _ -> None
       in
@@ -125,16 +128,36 @@ let rec eval ?(env = stdlib ()) = function
              match List.nth vals 0 with
              | None -> Value.Nil
              | Some f -> (Value.as_function f) (List.drop vals 1))
-  | Ast.Cons (e1, e2) ->
+  | Cons (e1, e2) ->
       let v1 = eval ~env e1 in
       let v2 = eval ~env e2 in
       Value.Cons (v1, v2)
-  | Ast.Quote v -> Value.quote v
+  | Quote v -> Value.quote v
+  | Quasiquote v -> quasiquote ~env v
+  | Unquote _ | UnquoteSplicing _ -> failwith "todo"
 
 and stdlib () =
   let env = builtins in
   Stdlib_lisp.src |> Parser.parse_string |> List.map ~f:(eval ~env) |> ignore;
   env
+
+and quasiquote ~env = function
+  | Atom s -> Value.Sym (Ident.Id s)
+  | Literal (LInt i) -> Int i
+  | Literal (LString s) -> String s
+  | List [ Atom ".unquote"; v ] | Unquote v -> eval ~env v
+  | List l ->
+      Value.list
+        List.(
+          l >>= function
+          | UnquoteSplicing v | List [ Atom ".unquote-splicing"; v ] ->
+              eval ~env v |> Value.as_list_exn
+          | v -> [ quasiquote ~env v ])
+  | Cons (x, y) -> Cons (quasiquote ~env x, quasiquote ~env y)
+  | Quote v -> Value.list [ Value.Sym (Ident.Id ".quote"); quasiquote ~env v ]
+  | Quasiquote v ->
+      Value.list [ Sym (Ident.Id ".quasiquote"); quasiquote ~env v ]
+  | UnquoteSplicing _ -> raise (Error UnquoteSplicingOutsideList)
 
 and eval_vars ~env =
   Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
@@ -227,7 +250,6 @@ and eval_if ~env = function
 
 let%test_module _ =
   (module struct
-    let () = Printexc.record_backtrace false
     let eval_expr s = Parser.parse_string s |> List.map ~f:eval |> List.last_exn
     let eval_print s = eval_expr s |> Value.to_string |> print_endline
 
@@ -258,6 +280,10 @@ let%test_module _ =
     let%expect_test "quote" =
       eval_print "'a";
       [%expect {| 'a |}]
+
+    let%expect_test "quasiquote" =
+      eval_print "`(1 ,(+ 1 1) ,@(list 3 4))";
+      [%expect {| (1 2 3 4) |}]
 
     let%expect_test ".let" =
       eval_print "(.let ((x 1)) x)";

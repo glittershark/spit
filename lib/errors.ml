@@ -7,6 +7,7 @@ type error =
   | WrongArgCount of int * int
   | CantUnquoteFunctions
   | CantCompareFunctions
+  | UnquoteSplicingOutsideList
 [@@deriving sexp]
 
 exception Error of error [@@deriving sexp]
@@ -30,5 +31,8 @@ let () =
              |> Some
          | Error CantCompareFunctions ->
              sprintf "Can't compare functions" |> Some
+         | Error UnquoteSplicingOutsideList ->
+             sprintf "unquote-splicing encountered outside quasiquote list"
+             |> Some
          | _ -> None
        with _ -> None))

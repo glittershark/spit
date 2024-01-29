@@ -14,6 +14,9 @@ type sexp =
   | List of sexp list
   | Cons of (sexp * sexp)
   | Quote of sexp
+  | Quasiquote of sexp
+  | Unquote of sexp
+  | UnquoteSplicing of sexp
 [@@deriving sexp]
 
 let type_name = function
@@ -22,3 +25,6 @@ let type_name = function
   | List _ -> "list"
   | Cons _ -> "cons"
   | Quote _ -> "quote"
+  | Quasiquote _ -> "quasiquote"
+  | Unquote _ -> "unquote"
+  | UnquoteSplicing _ -> "unquote-splicing"

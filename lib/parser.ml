@@ -80,6 +80,19 @@ let%test_module _ =
       |};
       [%expect {| (List ((Atom .lambda) (Atom x) (Atom x))) |}]
 
+    let%expect_test "quasiquote" =
+      parse_and_print "`(1)";
+      [%expect {| (Quasiquote (List ((Literal (LInt 1))))) |}];
+      parse_and_print "`(1 ,(+ 1 1) ,@(list 3 4))";
+      [%expect
+        {|
+        (Quasiquote
+         (List
+          ((Literal (LInt 1))
+           (Unquote (List ((Atom +) (Literal (LInt 1)) (Literal (LInt 1)))))
+           (UnquoteSplicing
+            (List ((Atom list) (Literal (LInt 3)) (Literal (LInt 4)))))))) |}]
+
     (* Failed parsing *)
 
     let%expect_test "illegal list" =

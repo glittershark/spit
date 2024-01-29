@@ -40,13 +40,21 @@ let rec as_list = function
   | Nil -> Some []
   | _ -> None
 
+let as_list_exn v =
+  match as_list v with
+  | Some r -> r
+  | None -> raise (wrong_type v "proper list")
+
 let rec quote = function
-  | Ast.Atom s -> Sym (Ident.Id s)
-  | Ast.Literal (Ast.LInt i) -> Int i
-  | Ast.Literal (Ast.LString s) -> String s
-  | Ast.List l -> list (List.map ~f:quote l)
-  | Ast.Cons (x, y) -> Cons (quote x, quote y)
-  | Ast.Quote v -> list [ Sym (Ident.Id ".quote"); quote v ]
+  | Atom s -> Sym (Ident.Id s)
+  | Literal (LInt i) -> Int i
+  | Literal (LString s) -> String s
+  | List l -> list (List.map ~f:quote l)
+  | Cons (x, y) -> Cons (quote x, quote y)
+  | Quote v -> list [ Sym (Ident.Id ".quote"); quote v ]
+  | Quasiquote v -> list [ Sym (Ident.Id ".quasiquote"); quote v ]
+  | Unquote v -> list [ Sym (Ident.Id ".unquote"); quote v ]
+  | UnquoteSplicing v -> list [ Sym (Ident.Id ".unquote-splicing"); quote v ]
 
 let rec unquote =
   let open Ast in
