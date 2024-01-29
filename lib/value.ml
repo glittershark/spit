@@ -46,7 +46,7 @@ let rec quote = function
   | Ast.Literal (Ast.LString s) -> String s
   | Ast.List l -> list (List.map ~f:quote l)
   | Ast.Cons (x, y) -> Cons (quote x, quote y)
-  | Ast.Quote v -> list [ Sym (Ident.Id ".quote"); quote v; Nil ]
+  | Ast.Quote v -> list [ Sym (Ident.Id ".quote"); quote v ]
 
 let rec unquote =
   let open Ast in
