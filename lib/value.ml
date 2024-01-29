@@ -40,6 +40,14 @@ let rec as_list = function
   | Nil -> Some []
   | _ -> None
 
+let rec quote = function
+  | Ast.Atom s -> Sym (Ident.Id s)
+  | Ast.Literal (Ast.LInt i) -> Int i
+  | Ast.Literal (Ast.LString s) -> String s
+  | Ast.List l -> list (List.map ~f:quote l)
+  | Ast.Cons (x, y) -> Cons (quote x, quote y)
+  | Ast.Quote v -> list [ Sym (Ident.Id ".quote"); quote v; Nil ]
+
 let rec unquote =
   let open Ast in
   function
@@ -52,6 +60,22 @@ let rec unquote =
   | String s -> Ast.Literal (LString s)
   | Sym (Ident.Id n) -> Ast.Atom n
   | Fun _ -> raise (Error CantUnquoteFunctions)
+
+let rec to_string = function
+  | Nil -> "nil"
+  | Int i -> string_of_int i
+  | Cons (hd, tl) as v -> (
+      match as_list v with
+      | Some l ->
+          l |> List.map ~f:to_string |> String.concat ~sep:" "
+          |> Printf.sprintf "(%s)"
+      | None -> Printf.sprintf "(cons %s %s)" (to_string hd) (to_string tl))
+  | String s ->
+      s
+      |> String.substr_replace_all ~pattern:"\"" ~with_:"\\\""
+      |> Printf.sprintf "\"%s\""
+  | Sym (Id s) -> Printf.sprintf "'%s" s
+  | Fun _ -> "<function>"
 
 let is_truthy = function Nil -> false | _ -> true
 
@@ -83,6 +107,37 @@ let (gen : t Quickcheck.Generator.t) =
       (String.gen' Char.gen_print >>| fun s -> String s);
       (String.gen' Char.gen_alpha >>| Ident.of_s >>| fun id -> Sym id);
     ]
+
+let%test_module "to_string" =
+  (module struct
+    let parse_print s =
+      Parser.parse_string s |> List.last_exn |> quote |> to_string
+      |> print_endline
+
+    let%expect_test _ =
+      parse_print "()";
+      [%expect {| nil |}]
+
+    let%expect_test _ =
+      parse_print "1";
+      [%expect {| 1 |}]
+
+    let%expect_test _ =
+      parse_print {| "asdf" |};
+      [%expect {| "asdf" |}]
+
+    let%expect_test _ =
+      parse_print {| (1 2 3) |};
+      [%expect {| (1 2 3) |}]
+
+    let%expect_test _ =
+      parse_print {| foobar |};
+      [%expect {| 'foobar |}]
+
+    let%expect_test _ =
+      Fun (fun _ -> Nil) |> to_string |> print_endline;
+      [%expect {| <function> |}]
+  end)
 
 let%test_module "compare properties" =
   (module struct

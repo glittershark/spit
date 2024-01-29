@@ -165,7 +165,7 @@ let rec eval ?(env = stdlib ()) = function
             args |> List.hd
             |> Option.value_or_thunk ~default:(fun () ->
                    raise (Error (WrongArgCount (List.length args, 1))))
-            |> eval_quote |> Some
+            |> Value.quote |> Some
         | "macroexpand-1" -> Some (eval_macroexpand_1 ~env args)
         | "if" -> Some (eval_if ~env args)
         | _ -> None
@@ -179,7 +179,7 @@ let rec eval ?(env = stdlib ()) = function
         let macro =
           Env.lookup env id |> Option.value_exn |> Value.as_function
         in
-        List.map ~f:eval_quote args |> macro |> Value.unquote |> eval ~env
+        List.map ~f:Value.quote args |> macro |> Value.unquote |> eval ~env
       in
       let maybe_eval_macro = function
         | Ast.Atom id :: args when Env.is_macro env (Ident.Id id) ->
@@ -199,7 +199,7 @@ let rec eval ?(env = stdlib ()) = function
       let v1 = eval ~env e1 in
       let v2 = eval ~env e2 in
       Value.Cons (v1, v2)
-  | Ast.Quote v -> eval_quote v
+  | Ast.Quote v -> Value.quote v
 
 and stdlib () =
   let env = builtins in
@@ -278,15 +278,6 @@ and eval_is_macro ~env = function
   | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
-and eval_quote = function
-  | Ast.Atom s -> Value.Sym (Ident.Id s)
-  | Ast.Literal (Ast.LInt i) -> Value.Int i
-  | Ast.Literal (Ast.LString s) -> Value.String s
-  | Ast.List l -> Value.list (List.map ~f:eval_quote l)
-  | Ast.Cons (x, y) -> Value.Cons (eval_quote x, eval_quote y)
-  | Ast.Quote v ->
-      Value.list [ Value.Sym (Ident.Id ".quote"); eval_quote v; Value.Nil ]
-
 and eval_macroexpand_1 ~env = function
   | Ast.List (Ast.Atom name :: args) :: []
     when Env.is_macro env (Ident.of_s name) ->
@@ -294,8 +285,8 @@ and eval_macroexpand_1 ~env = function
         Env.lookup env (Ident.of_s name)
         |> Option.value_exn |> Value.as_function
       in
-      List.map ~f:eval_quote args |> macro
-  | [ ast ] -> eval_quote ast
+      List.map ~f:Value.quote args |> macro
+  | [ ast ] -> Value.quote ast
   | args -> raise (Error (WrongArgCount (List.length args, 1)))
 
 and eval_if ~env = function
