@@ -11,12 +11,17 @@
 (.make-macro defmacro*)
 
 (defmacro* defmacro-alias
-  (name alias-for)
+    (name alias-for)
   (list 'defmacro* name 'args (list 'cons (list '.quote alias-for) 'args)))
 
 (defmacro-alias lambda .lambda)
 (defmacro-alias quote .quote)
 (defmacro-alias def .def)
+
+(defmacro* if args
+  (.if (cdr (cdr args))
+       (cons '.if args)
+       (list '.if (car args) (cdr args) nil)))
 
 (defmacro* defun* (name arg ret)
   (list 'def name (list 'lambda arg ret)))
@@ -27,15 +32,16 @@
 
 ;; Lists
 
-(defun* nil? (xs) (.if xs nil t))
+(defun* nil? (xs) (if xs nil t))
 
 (defun* length (xs)
   (.if xs (+ 1 (length (cdr xs))) 0))
 
 (defun* nth (xs n)
   (and xs
-       (.if (zero? n) (car xs)
-            (nth (cdr xs) (- n 1)))))
+       (if (zero? n)
+           (car xs)
+           (nth (cdr xs) (- n 1)))))
 
 (defun* caar (x) (car (car x)))
 (defun* cadr (x) (car (cdr x)))
@@ -66,13 +72,27 @@
 (defun* cdddar (x) (cdr (cdr (cdr (car x)))))
 (defun* cddddr (x) (cdr (cdr (cdr (cdr x)))))
 
+(defun* foldl (f acc xs)
+  (if (nil? xs) acc (foldl f (f acc (car xs)) (cdr xs))))
+
+(defun* foldr (f acc xs)
+  (if (nil? xs) acc (f (car xs) (foldr f acc (cdr xs)))))
+
+(defun* concat* (x1 x2)
+  (if (nil? x1) x2
+      (cons
+       (car x1)
+       (concat* (cdr x1) x2))))
+(defun* concat xs
+  (foldr concat* nil xs))
+
 ;; Booleans
 
 (defun* not (x) (nil? x))
 
 (.def t 't)
-(defmacro* and* (x y) (list '.if x y nil))
-(defmacro* or* (x y) (list '.if x x y))
+(defmacro* and* (x y) (list 'if x y nil))
+(defmacro* or* (x y) (list 'if x x y))
 
 (defmacro* and xs
   (.if (nil? xs)
@@ -87,3 +107,11 @@
        (.if (=* 1 (length xs))
             (car xs)
             (list 'or* (car xs) (cons 'or (cdr xs))))))
+
+(defmacro* cond args
+  (.if (nil? args)
+       t
+       (list 'if
+             (car args)
+             (cadr args)
+             (cons 'cond (cddr args)))))

@@ -13,7 +13,7 @@ let%test_module "ints" =
     let%expect_test "minus" =
       eval_print "(- 1 1)";
       [%expect {| (Int 0) |}]
-    end)
+  end)
 
 let%test_module "lists" =
   (module struct
@@ -28,7 +28,17 @@ let%test_module "lists" =
       [%expect {| (Int 3) |}];
 
       eval_print "(nth (list 1 2 3) 3)";
-      [%expect {| Nil |}];
+      [%expect {| Nil |}]
+
+    let%expect_test "concat" =
+      eval_print "(concat (list 1 2 3) (list 4 5 6))";
+      [%expect
+        {|
+        (Cons
+         ((Int 1)
+          (Cons
+           ((Int 2)
+            (Cons ((Int 3) (Cons ((Int 4) (Cons ((Int 5) (Cons ((Int 6) Nil)))))))))))) |}]
   end)
 
 let%test_module "booleans" =
@@ -55,4 +65,14 @@ let%test_module "booleans" =
 
       eval_print "(or nil nil nil)";
       [%expect {| Nil |}]
+
+    let%expect_test "cond" =
+      eval_print "(cond t 1)";
+      [%expect {| (Int 1) |}];
+
+      eval_print "(cond nil 1 t 2)";
+      [%expect {| (Int 2) |}];
+
+      eval_print "(cond nil 1 nil 2)";
+      [%expect {| (Sym (Ident t)) |}]
   end)
