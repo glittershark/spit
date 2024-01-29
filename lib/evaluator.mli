@@ -10,6 +10,7 @@ type error =
   | WrongExprType of string * string
   | WrongArgCount of int * int
   | CantUnquoteFunctions
+  | CantCompareFunctions
 
 exception Error of error
 

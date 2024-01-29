@@ -16,3 +16,11 @@
 
 (defmacro-alias lambda .lambda)
 (defmacro-alias quote .quote)
+(defmacro-alias def .def)
+
+(defmacro* defun* (name arg ret)
+  (list 'def name (list 'lambda arg ret)))
+
+(defun* <* (x1 x2) (neg? (compare x1 x2)))
+(defun* >* (x1 x2) (pos? (compare x1 x2)))
+(defun* =* (x1 x2) (zero? (compare x1 x2)))
