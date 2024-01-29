@@ -6,7 +6,10 @@ module Ident = struct
   let of_s s = Id s
 end
 
-type literal = LInt of int | LString of string [@@deriving sexp]
+type literal =
+  | LInt of int
+  | LString of string
+[@@deriving sexp]
 
 type sexp =
   | Atom of string
@@ -28,3 +31,4 @@ let type_name = function
   | Quasiquote _ -> "quasiquote"
   | Unquote _ -> "unquote"
   | UnquoteSplicing _ -> "unquote-splicing"
+;;

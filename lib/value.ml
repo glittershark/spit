@@ -14,8 +14,16 @@ type t =
 and fn = t list -> t
 
 let list = List.fold_right ~f:(fun x y -> Cons (x, y)) ~init:Nil
-let of_literal = function Ast.LInt i -> Int i | Ast.LString s -> String s
-let of_bool = function true -> Sym (Ident.of_s "t") | false -> Nil
+
+let of_literal = function
+  | Ast.LInt i -> Int i
+  | Ast.LString s -> String s
+;;
+
+let of_bool = function
+  | true -> Sym (Ident.of_s "t")
+  | false -> Nil
+;;
 
 let type_name = function
   | Nil | Cons _ -> "list"
@@ -23,27 +31,46 @@ let type_name = function
   | String _ -> "string"
   | Sym _ -> "symbol"
   | Fun _ -> "function"
+;;
 
 let wrong_type v expected = Error (WrongType (type_name v, expected))
 
 let as_cons = function
-  | Cons (x, y) -> (x, y)
+  | Cons (x, y) -> x, y
   | v -> raise (wrong_type v "cons")
+;;
 
-let as_int = function Int i -> i | v -> raise (wrong_type v "int")
-let as_string = function String s -> s | v -> raise (wrong_type v "string")
-let as_symbol = function Sym s -> s | v -> raise (wrong_type v "symbol")
-let as_function = function Fun f -> f | v -> raise (wrong_type v "function")
+let as_int = function
+  | Int i -> i
+  | v -> raise (wrong_type v "int")
+;;
+
+let as_string = function
+  | String s -> s
+  | v -> raise (wrong_type v "string")
+;;
+
+let as_symbol = function
+  | Sym s -> s
+  | v -> raise (wrong_type v "symbol")
+;;
+
+let as_function = function
+  | Fun f -> f
+  | v -> raise (wrong_type v "function")
+;;
 
 let rec as_list = function
   | Cons (x, y) -> as_list y |> Option.map ~f:(fun l -> x :: l)
   | Nil -> Some []
   | _ -> None
+;;
 
 let as_list_exn v =
   match as_list v with
   | Some r -> r
   | None -> raise (wrong_type v "proper list")
+;;
 
 let rec quote = function
   | Atom s -> Sym (Ident.Id s)
@@ -55,44 +82,49 @@ let rec quote = function
   | Quasiquote v -> list [ Sym (Ident.Id ".quasiquote"); quote v ]
   | Unquote v -> list [ Sym (Ident.Id ".unquote"); quote v ]
   | UnquoteSplicing v -> list [ Sym (Ident.Id ".unquote-splicing"); quote v ]
+;;
 
 let rec unquote =
   let open Ast in
   function
   | Nil -> List []
-  | Cons (hd, tl) -> (
-      match unquote tl with
-      | Ast.List t -> Ast.List (unquote hd :: t)
-      | expr -> Ast.Cons (unquote hd, expr))
+  | Cons (hd, tl) ->
+    (match unquote tl with
+     | Ast.List t -> Ast.List (unquote hd :: t)
+     | expr -> Ast.Cons (unquote hd, expr))
   | Int i -> Ast.Literal (LInt i)
   | String s -> Ast.Literal (LString s)
   | Sym (Ident.Id n) -> Ast.Atom n
   | Fun _ -> raise (Error CantUnquoteFunctions)
+;;
 
 let rec to_string = function
   | Nil -> "nil"
   | Int i -> string_of_int i
-  | Cons (hd, tl) as v -> (
-      match as_list v with
-      | Some l ->
-          l |> List.map ~f:to_string |> String.concat ~sep:" "
-          |> Printf.sprintf "(%s)"
-      | None -> Printf.sprintf "(cons %s %s)" (to_string hd) (to_string tl))
+  | Cons (hd, tl) as v ->
+    (match as_list v with
+     | Some l ->
+       l |> List.map ~f:to_string |> String.concat ~sep:" " |> Printf.sprintf "(%s)"
+     | None -> Printf.sprintf "(cons %s %s)" (to_string hd) (to_string tl))
   | String s ->
-      s
-      |> String.substr_replace_all ~pattern:"\"" ~with_:"\\\""
-      |> Printf.sprintf "\"%s\""
+    s |> String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" |> Printf.sprintf "\"%s\""
   | Sym (Id s) -> Printf.sprintf "'%s" s
   | Fun _ -> "<function>"
+;;
 
-let is_truthy = function Nil -> false | _ -> true
+let is_truthy = function
+  | Nil -> false
+  | _ -> true
+;;
 
 let rec compare x y =
-  match (x, y) with
+  match x, y with
   | Nil, Nil -> 0
   | Nil, _ -> -1
-  | Cons (x1, y1), Cons (x2, y2) -> (
-      match compare x1 x2 with 0 -> compare y1 y2 | c -> c)
+  | Cons (x1, y1), Cons (x2, y2) ->
+    (match compare x1 x2 with
+     | 0 -> compare y1 y2
+     | c -> c)
   | Cons _, Nil -> 1
   | Cons _, _ -> -1
   | String s1, String s2 -> String.compare s1 s2
@@ -105,47 +137,55 @@ let rec compare x y =
   | Sym _, (Nil | String _ | Cons _ | Int _) -> 1
   | Sym _, _ -> -1
   | Fun _, _ -> raise (Error CantCompareFunctions)
+;;
 
 let (gen : t Quickcheck.Generator.t) =
   let open Quickcheck.Generator in
   union
-    [
-      singleton Nil;
-      (Int.gen_incl Int.min_value Int.max_value >>| fun i -> Int i);
-      (String.gen' Char.gen_print >>| fun s -> String s);
-      (String.gen' Char.gen_alpha >>| Ident.of_s >>| fun id -> Sym id);
+    [ singleton Nil
+    ; (Int.gen_incl Int.min_value Int.max_value >>| fun i -> Int i)
+    ; (String.gen' Char.gen_print >>| fun s -> String s)
+    ; (String.gen' Char.gen_alpha >>| Ident.of_s >>| fun id -> Sym id)
     ]
+;;
 
 let%test_module "to_string" =
   (module struct
     let parse_print s =
-      Parser.parse_string s |> List.last_exn |> quote |> to_string
-      |> print_endline
+      Parser.parse_string s |> List.last_exn |> quote |> to_string |> print_endline
+    ;;
 
     let%expect_test _ =
       parse_print "()";
       [%expect {| nil |}]
+    ;;
 
     let%expect_test _ =
       parse_print "1";
       [%expect {| 1 |}]
+    ;;
 
     let%expect_test _ =
       parse_print {| "asdf" |};
       [%expect {| "asdf" |}]
+    ;;
 
     let%expect_test _ =
       parse_print {| (1 2 3) |};
       [%expect {| (1 2 3) |}]
+    ;;
 
     let%expect_test _ =
       parse_print {| foobar |};
       [%expect {| 'foobar |}]
+    ;;
 
     let%expect_test _ =
       Fun (fun _ -> Nil) |> to_string |> print_endline;
       [%expect {| <function> |}]
+    ;;
   end)
+;;
 
 let%test_module "compare properties" =
   (module struct
@@ -153,27 +193,38 @@ let%test_module "compare properties" =
 
     let%test_unit "equal reflexive" =
       Quickcheck.test ~sexp_of:[%sexp_of: t] gen ~f:(fun v ->
-          [%test_eq: int] (compare v v) 0)
+        [%test_eq: int] (compare v v) 0)
+    ;;
 
     let%test_unit "equal transitive" =
-      Quickcheck.test ~sexp_of:[%sexp_of: t * t * t] (tuple3 gen gen gen)
+      Quickcheck.test
+        ~sexp_of:[%sexp_of: t * t * t]
+        (tuple3 gen gen gen)
         ~f:(fun (v1, v2, v3) ->
-          if compare v1 v2 = 0 && compare v2 v3 = 0 then
-            [%test_eq: int] (compare v1 v3) 0)
+          if compare v1 v2 = 0 && compare v2 v3 = 0 then [%test_eq: int] (compare v1 v3) 0)
+    ;;
 
     let%test_unit "symmetry" =
-      Quickcheck.test ~sexp_of:[%sexp_of: t * t] (tuple2 gen gen)
-        ~f:(fun (v1, v2) -> [%test_eq: int] (compare v1 v2) (-compare v2 v1))
+      Quickcheck.test ~sexp_of:[%sexp_of: t * t] (tuple2 gen gen) ~f:(fun (v1, v2) ->
+        [%test_eq: int] (compare v1 v2) (-compare v2 v1))
+    ;;
 
     let%test_unit "lt transitive" =
-      Quickcheck.test ~sexp_of:[%sexp_of: t * t * t] (tuple3 gen gen gen)
+      Quickcheck.test
+        ~sexp_of:[%sexp_of: t * t * t]
+        (tuple3 gen gen gen)
         ~f:(fun (v1, v2, v3) ->
-          if compare v1 v2 < 0 && compare v2 v3 < 0 then
-            [%test_pred: int] (fun r -> r < 0) (compare v1 v3))
+          if compare v1 v2 < 0 && compare v2 v3 < 0
+          then [%test_pred: int] (fun r -> r < 0) (compare v1 v3))
+    ;;
 
     let%test_unit "gt transitive" =
-      Quickcheck.test ~sexp_of:[%sexp_of: t * t * t] (tuple3 gen gen gen)
+      Quickcheck.test
+        ~sexp_of:[%sexp_of: t * t * t]
+        (tuple3 gen gen gen)
         ~f:(fun (v1, v2, v3) ->
-          if compare v1 v2 > 0 && compare v2 v3 > 0 then
-            [%test_pred: int] (fun r -> r > 0) (compare v1 v3))
+          if compare v1 v2 > 0 && compare v2 v3 > 0
+          then [%test_pred: int] (fun r -> r > 0) (compare v1 v3))
+    ;;
   end)
+;;
