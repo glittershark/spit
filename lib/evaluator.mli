@@ -1,37 +1,3 @@
-type error =
-  | UnknownIdentifier of Ast.Ident.t
-  | WrongType of string * string
-  | WrongExprType of string * string
-  | WrongArgCount of int * int
-  | CantUnquoteFunctions
-  | CantCompareFunctions
-
-exception Error of error
-
-module Value : sig
-  type fn = t list -> t
-
-  and t =
-    | Nil
-    | Cons of (t * t)
-    | Int of int
-    | String of string
-    | Sym of Ast.Ident.t
-    | Fun of fn
-  [@@deriving sexp_of]
-
-  val list : t list -> t
-  val of_literal : Ast.literal -> t
-  val type_name : t -> string
-  val wrong_type : t -> string -> exn
-  val as_cons : t -> t * t
-  val as_int : t -> int
-  val as_string : t -> string
-  val as_symbol : t -> Ast.Ident.t
-  val as_function : t -> fn
-  val unquote : t -> Ast.sexp
-end
-
 module Env : sig
   type t
 

@@ -2,6 +2,7 @@ open Base
 
 module Ident = struct
   type t = Id of string [@@deriving compare, hash, sexp]
+
   let of_s s = Id s
 end
 

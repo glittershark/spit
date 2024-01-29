@@ -7,8 +7,8 @@ let eval_filename filename =
   in
   let ress = List.map ~f:Spit.Evaluator.eval ast in
   List.last ress
-  |> Option.value ~default:Spit.Evaluator.Value.Nil
-  |> Printf.printf !"%{sexp:Spit.Evaluator.Value.t}"
+  |> Option.value ~default:Spit.Value.Nil
+  |> Printf.printf !"%{sexp:Spit.Value.t}"
 
 let repl () =
   let rec user_input prompt cb =
@@ -31,11 +31,11 @@ let repl () =
         match List.map ~f:(Spit.Evaluator.eval ~env) ast with
         | [] -> print_endline ""
         | res :: [] ->
-            Printf.sprintf !"%{sexp:Spit.Evaluator.Value.t}\n" res
+            Printf.sprintf !"%{sexp:Spit.Value.t}\n" res
             |> print_endline
         | ress ->
             List.map ress ~f:(fun res ->
-                Printf.sprintf !"%{sexp:Spit.Evaluator.Value.t}\n" res
+                Printf.sprintf !"%{sexp:Spit.Value.t}\n" res
                 |> print_endline)
             |> ignore
       with err ->

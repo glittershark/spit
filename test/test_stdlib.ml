@@ -6,7 +6,7 @@ let eval_expr s =
   Spit.Parser.parse_string s |> List.map ~f:Spit.Evaluator.eval |> List.last_exn
 
 let eval_print s =
-  eval_expr s |> Printf.printf !"%{sexp:Spit.Evaluator.Value.t}"
+  eval_expr s |> Printf.printf !"%{sexp:Spit.Value.t}"
 
 let%test_module "ints" =
   (module struct
