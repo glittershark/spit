@@ -1,0 +1,39 @@
+name: Dune
+
+on:
+  pull_request:
+  push:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Tests:
+    strategy:
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OCaml 4.14.0
+        uses: ocaml/setup-ocaml@v2
+        with:
+          cache-prefix: v1-ubuntu-latest-4.14.0
+          dune-cache: true
+          ocaml-compiler: 4.14.0
+
+      - name: Build dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Run test suite
+        run: opam exec -- dune runtest
+
+      - name: Lint fmt
+        uses: ocaml/setup-ocaml/lint-fmt@v2
