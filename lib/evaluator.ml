@@ -73,77 +73,7 @@ module Env = struct
     end)
 end
 
-module Builtins = struct
-  let check_args_count n args =
-    if not (List.length args = n) then
-      raise (Error (WrongArgCount (List.length args, n)))
-
-  let cons args =
-    check_args_count 2 args;
-    Value.Cons (List.nth_exn args 0, List.nth_exn args 1)
-
-  let car args =
-    check_args_count 1 args;
-    let v, _ = List.nth_exn args 0 |> Value.as_cons in
-    v
-
-  let cdr args =
-    check_args_count 1 args;
-    let _, v = List.nth_exn args 0 |> Value.as_cons in
-    v
-
-  let plus args = Value.Int (List.sum (module Int) ~f:Value.as_int args)
-
-  let minus = function
-    | [] -> raise (Error (WrongArgCount (0, 1)))
-    | x :: xs ->
-        Value.Int
-          (List.fold_right xs
-             ~f:(fun v acc -> acc - Value.as_int v)
-             ~init:(Value.as_int x))
-
-  let cmp args =
-    check_args_count 2 args;
-    Value.Int (Value.compare (List.nth_exn args 0) (List.nth_exn args 1))
-
-  let zerop args =
-    check_args_count 1 args;
-    List.nth_exn args 0
-    |> Value.compare (Value.Int 0)
-    |> (fun x -> x = 0)
-    |> Value.of_bool
-
-  let negp args =
-    check_args_count 1 args;
-    List.nth_exn args 0
-    |> Value.compare (Value.Int 0)
-    |> Int.is_positive |> Value.of_bool
-
-  let posp args =
-    check_args_count 1 args;
-    List.nth_exn args 0
-    |> Value.compare (Value.Int 0)
-    |> Int.is_negative |> Value.of_bool
-
-  let env =
-    let id n = Ident.Id n in
-    let open Value in
-    Env.of_vars
-      [
-        (id "nil", Nil);
-        (id "cons", Fun cons);
-        (id "car", Fun car);
-        (id "cdr", Fun cdr);
-        (id "+", Fun plus);
-        (id "-", Fun minus);
-        (id "compare", Fun cmp);
-        (id "zero?", Fun zerop);
-        (id "neg?", Fun negp);
-        (id "pos?", Fun posp);
-      ]
-end
-
-let builtins = Builtins.env
+let builtins = Env.of_vars Builtins.vars
 
 let rec eval ?(env = stdlib ()) = function
   | Ast.Atom id -> (
