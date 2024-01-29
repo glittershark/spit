@@ -12,10 +12,13 @@ bug-reports: "https://github.com/username/reponame/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.12"}
-  "core"
   "base"
-  "ppx_inline_test"
+  "core"
+  "core_unix"
   "linenoise"
+  "menhir"
+  "nice_parser"
+  "ppx_inline_test"
   "odoc" {with-doc}
 ]
 build: [

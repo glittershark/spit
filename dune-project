@@ -22,12 +22,15 @@
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends
-   ocaml
-   dune
-   core
-   base
-   ppx_inline_test
-   linenoise)
+  ocaml
+  dune
+  base
+  core
+  core_unix
+  linenoise
+  menhir
+  nice_parser
+  ppx_inline_test)
  (tags
   (topics "to describe" your project)))
 
