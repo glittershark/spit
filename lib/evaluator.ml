@@ -229,47 +229,47 @@ let%test_module _ =
   (module struct
     let () = Printexc.record_backtrace false
     let eval_expr s = Parser.parse_string s |> List.map ~f:eval |> List.last_exn
-    let eval_print s = eval_expr s |> Printf.printf !"%{sexp:Value.t}"
+    let eval_print s = eval_expr s |> Value.to_string |> print_endline
 
     let%expect_test "eval_int" =
       eval_print "1";
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test "eval_plus_two_args" =
       eval_print "(+ 1 1)";
-      [%expect {| (Int 2) |}]
+      [%expect {| 2 |}]
 
     let%expect_test "eval_plus_many_args" =
       eval_print "(+ 1 2 3)";
-      [%expect {| (Int 6) |}]
+      [%expect {| 6 |}]
 
     let%expect_test "eval_plus_nested" =
       eval_print "(+ 1 2 (+ 3 4))";
-      [%expect {| (Int 10) |}]
+      [%expect {| 10 |}]
 
     let%expect_test "list" =
       eval_print "(cons 1 (+ 2 2))";
-      [%expect {| (Cons ((Int 1) (Int 4))) |}]
+      [%expect {| (cons 1 4) |}]
 
     let%expect_test "car and cdr" =
       eval_print "(cons (car (cons 1 2)) (cdr (cons 1 2)))";
-      [%expect {| (Cons ((Int 1) (Int 2))) |}]
+      [%expect {| (cons 1 2) |}]
 
     let%expect_test "quote" =
       eval_print "'a";
-      [%expect {| (Sym (Id a)) |}]
+      [%expect {| 'a |}]
 
     let%expect_test ".let" =
       eval_print "(.let ((x 1)) x)";
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test ".let with multiple vars" =
       eval_print "(.let ((x 1) (y 2)) (+ x y))";
-      [%expect {| (Int 3) |}]
+      [%expect {| 3 |}]
 
     let%expect_test ".let referencing earlier vars" =
       eval_print "(.let ((x 1) (y (+ x 1))) (+ x y))";
-      [%expect {| (Int 3) |}]
+      [%expect {| 3 |}]
 
     let%expect_test ".let shadowing" =
       eval_print
@@ -279,26 +279,26 @@ let%test_module _ =
            (+ (.let ((x 4)) x)
               x))
         |};
-      [%expect {| (Int 5) |}]
+      [%expect {| 5 |}]
 
     let%expect_test ".def" =
       eval_print {|
         (.def x 1)
         x
       |};
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test ".lambda" =
       eval_print "((.lambda x (car x)) 1)";
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test "lambda with list args" =
       eval_print "((.lambda (x) x) 1)";
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test "lambda with multiple args" =
       eval_print "((.lambda (x y) (+ x y)) 1 2)";
-      [%expect {| (Int 3) |}]
+      [%expect {| 3 |}]
 
     let%expect_test "simplest possible macros" =
       eval_print
@@ -312,11 +312,11 @@ let%test_module _ =
         (.make-macro make-id)
         ((make-id) 1)
       |};
-      [%expect {| (Int 1) |}]
+      [%expect {| 1 |}]
 
     let%expect_test "simple if " =
       eval_print "(.if 1 'a 'b)";
-      [%expect {| (Sym (Id a)) |}];
+      [%expect {| 'a |}];
       eval_print "(.if nil 'a 'b)";
-      [%expect {| (Sym (Id b)) |}]
+      [%expect {| 'b |}]
   end)
