@@ -247,6 +247,14 @@ module Builtins = struct
 
   let plus args = Value.Int (List.sum (module Int) ~f:Value.as_int args)
 
+  let minus = function
+    | [] -> raise (Error (WrongArgCount (0, 1)))
+    | x :: xs ->
+        Value.Int
+          (List.fold_right xs
+             ~f:(fun v acc -> acc - Value.as_int v)
+             ~init:(Value.as_int x))
+
   let cmp args =
     check_args_count 2 args;
     Value.Int (Value.compare (List.nth_exn args 0) (List.nth_exn args 1))
@@ -280,6 +288,7 @@ module Builtins = struct
         (id "car", Fun car);
         (id "cdr", Fun cdr);
         (id "+", Fun plus);
+        (id "-", Fun minus);
         (id "compare", Fun cmp);
         (id "zero?", Fun zerop);
         (id "neg?", Fun negp);
