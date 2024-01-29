@@ -15,20 +15,20 @@ This repository contains literally the first lines of OCaml I've ever written
 #+begin_src
 ❯ dune exec bin/main.exe
 spit -> (.def x 1)
-Nil
+nil
 
 spit -> x
-(Int 1)
+1
 
 spit -> (+ x x)
-(Int 2)
+2
 
 spit -> (+ x x 4)
-(Int 6)
+6
 
-spit -> (.def plus-1 (.lambda x (+ (car x) 1)))
-Nil
+spit -> (defun* plus-1 (x) (+ x 1))
+nil
 
 spit -> (plus-1 1)
-(Int 2)
+2
 #+end_src
