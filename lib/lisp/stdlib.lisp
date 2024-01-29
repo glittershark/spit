@@ -24,3 +24,32 @@
 (defun* <* (x1 x2) (neg? (compare x1 x2)))
 (defun* >* (x1 x2) (pos? (compare x1 x2)))
 (defun* =* (x1 x2) (zero? (compare x1 x2)))
+
+;; Lists
+
+(defun* nil? (xs) (.if xs nil t))
+
+(defun* length (xs)
+  (.if xs (+ 1 (length (cdr xs))) 0))
+
+;; Booleans
+
+(defun* not (x) (nil? x))
+
+(.def t 't)
+(defmacro* and* (x y) (list '.if x y nil))
+(defmacro* or* (x y) (list '.if x x y))
+
+(defmacro* and xs
+  (.if (nil? xs)
+       t
+       (.if (=* 1 (length xs))
+            (car xs)
+            (list 'and* (car xs) (cons 'and (cdr xs))))))
+
+(defmacro* or xs
+  (.if (nil? xs)
+       nil
+       (.if (=* 1 (length xs))
+            (car xs)
+            (list 'or* (car xs) (cons 'or (cdr xs))))))

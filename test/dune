@@ -1,5 +1,6 @@
 (library
  (name spit_test)
- (libraries core)
+ (libraries core spit)
+ (inline_tests)
  (preprocess
   (pps ppx_jane)))
