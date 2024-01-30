@@ -29,6 +29,16 @@ let%test_module "control flow" =
       [%expect {| 5 |}]
     ;;
   end)
+;;
+
+let%test_module "io" =
+  (module struct
+    let%expect_test "print" =
+      eval_print "(print \"abc\")";
+      [%expect {| abcnil |}]
+    ;;
+  end)
+;;
 
 let%test_module "ints" =
   (module struct

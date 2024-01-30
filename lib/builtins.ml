@@ -64,6 +64,16 @@ let posp =
   @@ fun arg -> arg |> Value.compare (Value.Int 0) |> Int.is_negative |> Value.of_bool
 ;;
 
+let type_ = singleton @@ fun arg -> Value.type_name arg |> Ast.Ident.of_s |> Value.Sym
+let to_string_ = singleton @@ fun arg -> arg |> Value.to_string |> Value.String
+
+let print_string_ =
+  singleton
+  @@ fun arg ->
+  Value.as_string arg |> print_string;
+  Value.Nil
+;;
+
 let vars =
   let open Value in
   [ "nil", Nil
@@ -76,6 +86,9 @@ let vars =
   ; "zero?", Fun zerop
   ; "neg?", Fun negp
   ; "pos?", Fun posp
+  ; "type", Fun type_
+  ; "to-string", Fun to_string_
+  ; "print-string", Fun print_string_
   ]
   |> List.map ~f:(fun (id, v) -> Ast.Ident.of_s id, v)
 ;;

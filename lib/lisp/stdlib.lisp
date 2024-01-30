@@ -33,7 +33,14 @@
           (let* ,(cdr vars) ,body))
         ,(cadar vars))))
 
-;;
+;; IO
+
+(defun* print (x)
+  (if (=* 'string (type x))
+      (print-string x)
+      (print-string (to-string x))))
+
+;; Comparisons
 
 (defun* <* (x1 x2) (neg? (compare x1 x2)))
 (defun* >* (x1 x2) (pos? (compare x1 x2)))
