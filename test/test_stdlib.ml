@@ -8,6 +8,28 @@ let eval_expr s =
 
 let eval_print s = eval_expr s |> Spit.Value.to_string |> print_endline
 
+let%test_module "control flow" =
+  (module struct
+    let%expect_test "let" =
+      eval_print "(let* () 1)";
+      [%expect {| 1 |}];
+      eval_print "(let* ((x 1)) x)";
+      [%expect {| 1 |}];
+      eval_print "(let* ((x 1) (y 2)) (+ x y))";
+      [%expect {| 3 |}];
+      eval_print "(let* ((x 1) (y (+ x 1))) (+ x y))";
+      [%expect {| 3 |}];
+      eval_print
+        {|
+          (let* ((x 1)
+                 (y (+ x 1)))
+           (+ (let* ((x 4)) x)
+              x))
+        |};
+      [%expect {| 5 |}]
+    ;;
+  end)
+
 let%test_module "ints" =
   (module struct
     let%expect_test "minus" =

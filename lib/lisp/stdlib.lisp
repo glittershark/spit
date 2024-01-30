@@ -16,13 +16,24 @@
 (defmacro-alias quote .quote)
 (defmacro-alias def .def)
 
+(defmacro* defun* (name arg ret)
+  `(def ,name (lambda ,arg ,ret)))
+
+;; Control flow
+
 (defmacro* if args
   (.if (cdr (cdr args))
        (cons '.if args)
        `(.if ,(car args) ,(cdr args) nil)))
 
-(defmacro* defun* (name arg ret)
-  `(def ,name (lambda ,arg ,ret)))
+(defmacro* let* (vars body)
+  (if (nil? vars)
+      body
+      `((lambda (,(caar vars))
+          (let* ,(cdr vars) ,body))
+        ,(cadar vars))))
+
+;;
 
 (defun* <* (x1 x2) (neg? (compare x1 x2)))
 (defun* >* (x1 x2) (pos? (compare x1 x2)))

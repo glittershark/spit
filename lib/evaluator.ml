@@ -106,7 +106,6 @@ let rec eval ?(env = stdlib ()) = function
       in
       match form with
       | "vars" -> Some (eval_vars ~env)
-      | "let" -> Some (eval_let ~env args)
       | "def" -> Some (eval_def ~env args)
       | "lambda" -> Some (eval_lambda ~env args)
       | "make-macro" -> Some (eval_make_macro ~env args)
@@ -170,24 +169,6 @@ and quasiquote ~env = function
   | UnquoteSplicing _ -> raise (Error UnquoteSplicingOutsideList)
 
 and eval_vars ~env = Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
-
-and eval_let ~env = function
-  | [] -> Value.Nil
-  | [ Ast.List vars; body ] ->
-    Env.in_frame env (fun () ->
-      List.map vars ~f:(function
-        | Ast.List [ vname; vexpr ] ->
-          let vname =
-            match vname with
-            | Ast.Atom v -> v
-            | _ -> raise (Error (WrongType (Ast.type_name vname, "atom")))
-          in
-          let v = eval ~env vexpr in
-          Env.set env (Ident.Id vname) v
-        | v -> raise (Error (WrongType (Ast.type_name v, "list with two elements"))))
-      |> ignore;
-      eval ~env body)
-  | hd :: _ -> raise (Error (WrongType (Ast.type_name hd, "list")))
 
 and eval_def ~env = function
   | [ Ast.Atom vname; expr ] ->
@@ -291,32 +272,6 @@ let%test_module _ =
     let%expect_test "quasiquote" =
       eval_print "`(1 ,(+ 1 1) ,@(list 3 4))";
       [%expect {| (1 2 3 4) |}]
-    ;;
-
-    let%expect_test ".let" =
-      eval_print "(.let ((x 1)) x)";
-      [%expect {| 1 |}]
-    ;;
-
-    let%expect_test ".let with multiple vars" =
-      eval_print "(.let ((x 1) (y 2)) (+ x y))";
-      [%expect {| 3 |}]
-    ;;
-
-    let%expect_test ".let referencing earlier vars" =
-      eval_print "(.let ((x 1) (y (+ x 1))) (+ x y))";
-      [%expect {| 3 |}]
-    ;;
-
-    let%expect_test ".let shadowing" =
-      eval_print
-        {|
-          (.let ((x 1)
-                 (y (+ x 1)))
-           (+ (.let ((x 4)) x)
-              x))
-        |};
-      [%expect {| 5 |}]
     ;;
 
     let%expect_test ".def" =
