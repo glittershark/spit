@@ -80,6 +80,10 @@ and string = parse
       { is_in_string := false;
         failwith "Unterminated string" }
 
+  | "\\n"
+    { Buffer.add_char string_buff '\n';
+      string lexbuf }
+
   | _ as chr
     { Buffer.add_char string_buff chr;
       string lexbuf }

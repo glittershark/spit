@@ -46,7 +46,9 @@ let%test_module _ =
 
     let%expect_test "string literals" =
       parse_and_print {| "s" |};
-      [%expect {|(Literal (LString s))|}]
+      [%expect {|(Literal (LString s))|}];
+      parse_and_print {| "\n" |};
+      [%expect {|(Literal (LString "\n"))|}]
     ;;
 
     let%expect_test "many literals" =
