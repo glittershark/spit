@@ -5,14 +5,12 @@
 (.def defmacro*
       (.lambda
        (name args ret)
-       (list 'list
-             (list '.def name (list '.lambda args ret))
-             (list '.make-macro name))))
+       `(list (.def ,name (.lambda ,args ,ret))
+              (.make-macro ,name))))
 (.make-macro defmacro*)
 
-(defmacro* defmacro-alias
-    (name alias-for)
-  (list 'defmacro* name 'args (list 'cons (list '.quote alias-for) 'args)))
+(defmacro* defmacro-alias (name alias-for)
+  `(defmacro* ,name args (cons (.quote ,alias-for) args)))
 
 (defmacro-alias lambda .lambda)
 (defmacro-alias quote .quote)
@@ -21,10 +19,10 @@
 (defmacro* if args
   (.if (cdr (cdr args))
        (cons '.if args)
-       (list '.if (car args) (cdr args) nil)))
+       `(.if ,(car args) ,(cdr args) nil)))
 
 (defmacro* defun* (name arg ret)
-  (list 'def name (list 'lambda arg ret)))
+  `(def ,name (lambda ,arg ,ret)))
 
 (defun* <* (x1 x2) (neg? (compare x1 x2)))
 (defun* >* (x1 x2) (pos? (compare x1 x2)))
@@ -91,27 +89,26 @@
 (defun* not (x) (nil? x))
 
 (.def t 't)
-(defmacro* and* (x y) (list 'if x y nil))
-(defmacro* or* (x y) (list 'if x x y))
+(defmacro* and* (x y) `(if ,x ,y nil))
+(defmacro* or* (x y) `((lambda (__x__) (if __x__ __x__ ,y)) ,x))
 
 (defmacro* and xs
   (.if (nil? xs)
        t
        (.if (=* 1 (length xs))
             (car xs)
-            (list 'and* (car xs) (cons 'and (cdr xs))))))
+            `(and* ,(car xs) (and ,@(cdr xs))))))
 
 (defmacro* or xs
   (.if (nil? xs)
        nil
        (.if (=* 1 (length xs))
             (car xs)
-            (list 'or* (car xs) (cons 'or (cdr xs))))))
+            `(or* ,(car xs) (or ,@(cdr xs))))))
 
 (defmacro* cond args
   (.if (nil? args)
        t
-       (list 'if
-             (car args)
-             (cadr args)
-             (cons 'cond (cddr args)))))
+       `(if ,(car args)
+            ,(cadr args)
+            (cond ,@(cddr args)))))
