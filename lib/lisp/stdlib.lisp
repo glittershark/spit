@@ -33,12 +33,21 @@
           (let* ,(cdr vars) ,body))
         ,(cadar vars))))
 
+(defmacro* do body
+  `(last (list ,@body)))
+
 ;; IO
 
 (defun* print (x)
   (if (=* 'string (type x))
       (print-string x)
       (print-string (to-string x))))
+
+(defun* println (x)
+  (do
+   (print x)
+   (print "\n")))
+
 
 ;; Comparisons
 
@@ -102,6 +111,12 @@
 (defun* concat xs
   (foldr concat* nil xs))
 
+(defun* last (l)
+  (cond
+    (nil? l) nil
+    (=* 1 (length l)) (car l)
+    'else (last (cdr l))))
+
 ;; Booleans
 
 (defun* not (x) (nil? x))
@@ -127,6 +142,8 @@
 (defmacro* cond args
   (.if (nil? args)
        t
-       `(if ,(car args)
-            ,(cadr args)
-            (cond ,@(cddr args)))))
+       (if (=* 1 (length args))
+           (car args)
+           `(if ,(car args)
+                ,(cadr args)
+                (cond ,@(cddr args))))))

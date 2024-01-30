@@ -7,6 +7,7 @@ let eval_expr s =
 ;;
 
 let eval_print s = eval_expr s |> Spit.Value.to_string |> print_endline
+let eval s = eval_expr s |> ignore
 
 let%test_module "control flow" =
   (module struct
@@ -28,14 +29,28 @@ let%test_module "control flow" =
         |};
       [%expect {| 5 |}]
     ;;
+
+    let%expect_test "do" =
+      eval_print {| (do (print "x") (print "\n") 1) |};
+      [%expect {|
+        x
+        1 |}]
+    ;;
   end)
 ;;
 
 let%test_module "io" =
   (module struct
     let%expect_test "print" =
-      eval_print "(print \"abc\")";
-      [%expect {| abcnil |}]
+      eval "(print \"abc\")";
+      [%expect {| abc |}]
+    ;;
+
+    let%expect_test "println" =
+      eval "(println \"abc\")";
+      [%expect {|
+        abc
+        |}]
     ;;
   end)
 ;;
@@ -65,6 +80,11 @@ let%test_module "lists" =
     let%expect_test "concat" =
       eval_print "(concat (list 1 2 3) (list 4 5 6))";
       [%expect {| (1 2 3 4 5 6) |}]
+    ;;
+
+    let%expect_test "last" =
+      eval_print "(last (list 1 2 3))";
+      [%expect {| 3 |}]
     ;;
   end)
 ;;
@@ -97,7 +117,9 @@ let%test_module "booleans" =
       eval_print "(cond nil 1 t 2)";
       [%expect {| 2 |}];
       eval_print "(cond nil 1 nil 2)";
-      [%expect {| t |}]
+      [%expect {| t |}];
+      eval_print "(cond nil 1 2)";
+      [%expect {| 2 |}]
     ;;
   end)
 ;;
