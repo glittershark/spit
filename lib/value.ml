@@ -33,7 +33,7 @@ let type_name = function
   | Fun _ -> "function"
 ;;
 
-let wrong_type v expected = Error (WrongType (type_name v, expected))
+let wrong_type v expected = WrongType (type_name v, expected)
 
 let as_cons = function
   | Cons (x, y) -> x, y
@@ -95,7 +95,7 @@ let rec unquote =
   | Int i -> Ast.Literal (LInt i)
   | String s -> Ast.Literal (LString s)
   | Sym (Ident.Id n) -> Ast.Atom n
-  | Fun _ -> raise (Error CantUnquoteFunctions)
+  | Fun _ -> raise CantUnquoteFunctions
 ;;
 
 let rec to_string = function
@@ -136,7 +136,7 @@ let rec compare x y =
   | Sym i1, Sym i2 -> Ident.compare i1 i2
   | Sym _, (Nil | String _ | Cons _ | Int _) -> 1
   | Sym _, _ -> -1
-  | Fun _, _ -> raise (Error CantCompareFunctions)
+  | Fun _, _ -> raise CantCompareFunctions
 ;;
 
 let (gen : t Quickcheck.Generator.t) =

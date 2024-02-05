@@ -1,16 +1,12 @@
 open Core
 
-type error =
-  | UnknownIdentifier of Ast.Ident.t
-  | WrongType of string * string
-  | WrongExprType of string * string
-  | WrongArgCount of int * int
-  | CantUnquoteFunctions
-  | CantCompareFunctions
-  | UnquoteSplicingOutsideList
-[@@deriving sexp]
-
-exception Error of error [@@deriving sexp]
+exception UnknownIdentifier of Ast.Ident.t [@@deriving sexp]
+exception WrongType of string * string [@@deriving sexp]
+exception WrongExprType of string * string [@@deriving sexp]
+exception WrongArgCount of int * int [@@deriving sexp]
+exception CantUnquoteFunctions
+exception CantCompareFunctions
+exception UnquoteSplicingOutsideList
 
 let () =
   Stdlib.Printexc.register_printer (function exn ->
@@ -18,17 +14,16 @@ let () =
     (try
        Stdlib.Format.flush_str_formatter () |> ignore;
        match exn with
-       | Error (UnknownIdentifier (Ast.Ident.Id id)) ->
-         sprintf "Unknown identifier %s" id |> Some
-       | Error CantUnquoteFunctions -> "Cannot unquote function values" |> Some
-       | Error (WrongType (ty, expected)) ->
+       | UnknownIdentifier (Ast.Ident.Id id) -> sprintf "Unknown identifier %s" id |> Some
+       | CantUnquoteFunctions -> "Cannot unquote function values" |> Some
+       | WrongType (ty, expected) ->
          sprintf "Wrong type %s, expected %s" ty expected |> Some
-       | Error (WrongExprType (ty, expected)) ->
+       | WrongExprType (ty, expected) ->
          sprintf "Wrong expression type %s, expected %s" ty expected |> Some
-       | Error (WrongArgCount (args, expected)) ->
+       | WrongArgCount (args, expected) ->
          sprintf "Wrong number of arguments %d, expected %d" args expected |> Some
-       | Error CantCompareFunctions -> sprintf "Can't compare functions" |> Some
-       | Error UnquoteSplicingOutsideList ->
+       | CantCompareFunctions -> sprintf "Can't compare functions" |> Some
+       | UnquoteSplicingOutsideList ->
          sprintf "unquote-splicing encountered outside quasiquote list" |> Some
        | _ -> None
      with

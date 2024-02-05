@@ -92,7 +92,7 @@ let rec eval ?(env = stdlib ()) = function
     let ident = Ident.Id id in
     (match Env.lookup env ident with
      | Some v -> v
-     | None -> raise (Error (UnknownIdentifier ident)))
+     | None -> raise (UnknownIdentifier ident))
   | Literal lit -> Value.of_literal lit
   | List lst ->
     let rec special_form (Ident.Id form) args =
@@ -100,7 +100,7 @@ let rec eval ?(env = stdlib ()) = function
         args
         |> List.hd
         |> Option.value_or_thunk ~default:(fun () ->
-          raise (Error (WrongArgCount (List.length args, 1))))
+          raise (WrongArgCount (List.length args, 1)))
         |> f
         |> Some
       in
@@ -166,7 +166,7 @@ and quasiquote ~env = function
   | Cons (x, y) -> Cons (quasiquote ~env x, quasiquote ~env y)
   | Quote v -> Value.list [ Value.Sym (Ident.Id ".quote"); quasiquote ~env v ]
   | Quasiquote v -> Value.list [ Sym (Ident.Id ".quasiquote"); quasiquote ~env v ]
-  | UnquoteSplicing _ -> raise (Error UnquoteSplicingOutsideList)
+  | UnquoteSplicing _ -> raise UnquoteSplicingOutsideList
 
 and eval_vars ~env = Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
 
@@ -175,8 +175,8 @@ and eval_def ~env = function
     let value = eval ~env expr in
     Env.set_toplevel env (Ident.Id vname) value;
     Value.Nil
-  | [ arg1; _ ] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
-  | args -> raise (Error (WrongArgCount (List.length args, 2)))
+  | [ arg1; _ ] -> raise (WrongType (Ast.type_name arg1, "atom"))
+  | args -> raise (WrongArgCount (List.length args, 2))
 
 and eval_lambda ~env = function
   | [ ((Ast.Atom _ | Ast.List _) as arg); body ] ->
@@ -189,8 +189,8 @@ and eval_lambda ~env = function
            (match List.map2 argnames l ~f:(fun argname v -> bind_env v argname) with
             | List.Or_unequal_lengths.Ok _ -> ()
             | List.Or_unequal_lengths.Unequal_lengths ->
-              raise (Error (WrongArgCount (List.length l, List.length argnames))))
-         | None -> raise (Error (WrongType (Value.type_name v, "proper list"))))
+              raise (WrongArgCount (List.length l, List.length argnames)))
+         | None -> raise (WrongType (Value.type_name v, "proper list")))
       | _ -> failwith "unreachable"
     in
     Value.Fun
@@ -198,20 +198,20 @@ and eval_lambda ~env = function
         Env.in_frame closure (fun () ->
           bind_env (Value.list args) arg;
           eval ~env:closure body))
-  | [ arg; _ ] -> raise (Error (WrongType (Ast.type_name arg, "list or atom")))
-  | args -> raise (Error (WrongArgCount (List.length args, 2)))
+  | [ arg; _ ] -> raise (WrongType (Ast.type_name arg, "list or atom"))
+  | args -> raise (WrongArgCount (List.length args, 2))
 
 and eval_make_macro ~env = function
   | Ast.Atom vname :: [] ->
     Env.set_is_macro env (Ident.Id vname);
     Value.Nil
-  | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
-  | args -> raise (Error (WrongArgCount (List.length args, 1)))
+  | arg1 :: [] -> raise (WrongType (Ast.type_name arg1, "atom"))
+  | args -> raise (WrongArgCount (List.length args, 1))
 
 and eval_is_macro ~env = function
   | Ast.Atom vname :: [] -> vname |> Ident.of_s |> Env.is_macro env |> Value.of_bool
-  | arg1 :: [] -> raise (Error (WrongType (Ast.type_name arg1, "atom")))
-  | args -> raise (Error (WrongArgCount (List.length args, 1)))
+  | arg1 :: [] -> raise (WrongType (Ast.type_name arg1, "atom"))
+  | args -> raise (WrongArgCount (List.length args, 1))
 
 and eval_macroexpand_1 ~env = function
   | Ast.List (Ast.Atom name :: args) :: [] when Env.is_macro env (Ident.of_s name) ->
@@ -220,13 +220,13 @@ and eval_macroexpand_1 ~env = function
     in
     List.map ~f:Value.quote args |> macro
   | [ ast ] -> Value.quote ast
-  | args -> raise (Error (WrongArgCount (List.length args, 1)))
+  | args -> raise (WrongArgCount (List.length args, 1))
 
 and eval_if ~env = function
   | [ cond_e; then_e; else_e ] ->
     let cond = eval ~env cond_e in
     if Value.is_truthy cond then eval ~env then_e else eval ~env else_e
-  | args -> raise (Error (WrongArgCount (List.length args, 3)))
+  | args -> raise (WrongArgCount (List.length args, 3))
 ;;
 
 let%test_module _ =
