@@ -44,6 +44,11 @@ let%test_module _ =
       [%expect {| (List ((List ()) (List ()) (List ()) (List ()))) |}]
     ;;
 
+    let%expect_test "cons" =
+      parse_and_print "(x . y)";
+      [%expect {| (Cons ((Atom x) (Atom y))) |}]
+    ;;
+
     let%expect_test "string literals" =
       parse_and_print {| "s" |};
       [%expect {|(Literal (LString s))|}];

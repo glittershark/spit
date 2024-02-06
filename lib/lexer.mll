@@ -43,6 +43,7 @@ rule next_token = parse
   | '`' { BACKTICK }
   | ",@" { COMMA_AT }
   | ',' { COMMA }
+  | '.' { DOT }
   | ';' { comment lexbuf }
 
   | "\""
