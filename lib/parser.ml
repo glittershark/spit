@@ -1,3 +1,5 @@
+open Core
+
 include Nice_parser.Make (struct
     type result = Ast.sexp list
     type token = Menhir_parser.token
@@ -17,7 +19,7 @@ let%test_module _ =
     let parse_and_print s =
       let toplevels = parse_string s in
       if not (List.length toplevels = 1) then failwith "Found multiple toplevels";
-      List.hd toplevels |> print_sexp
+      List.hd_exn toplevels |> print_sexp
     ;;
 
     let%expect_test "atom" =
@@ -125,6 +127,15 @@ let%test_module _ =
       parse_and_print "(wrong (right)";
       [%expect.unreachable]
     [@@expect.uncaught_exn {| ("Nice_parser.Make(P).ParseError(3, _)") |}]
+    ;;
+
+    let%test_unit "parse and Ast.string_of_sexp round-trip" =
+      Quickcheck.test
+        ~sexp_of:[%sexp_of: Ast.sexp]
+        Ast.quickcheck_generator_sexp
+        ~f:(fun s ->
+          let rt = s |> Ast.string_of_sexp |> parse_string |> List.hd_exn in
+          [%test_eq: Ast.sexp] s rt)
     ;;
   end)
 ;;

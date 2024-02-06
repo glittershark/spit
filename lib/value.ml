@@ -106,8 +106,7 @@ let rec to_string = function
      | Some l ->
        l |> List.map ~f:to_string |> String.concat ~sep:" " |> Printf.sprintf "(%s)"
      | None -> Printf.sprintf "(cons %s %s)" (to_string hd) (to_string tl))
-  | String s ->
-    s |> String.substr_replace_all ~pattern:"\"" ~with_:"\\\"" |> Printf.sprintf "\"%s\""
+  | String s -> Utils.quote_string_literal s
   | Sym (Id s) -> s
   | Fun _ -> "<function>"
 ;;
