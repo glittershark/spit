@@ -15,4 +15,4 @@ end
 
 val builtins : Env.t
 val stdlib : unit -> Env.t
-val eval : ?env:Env.t -> Ast.sexp -> Value.t
+val eval : ?env:Env.t -> Ast.Sexp.t -> Value.t

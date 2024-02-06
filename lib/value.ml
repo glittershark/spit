@@ -15,8 +15,8 @@ and fn = t list -> t
 let list = List.fold_right ~f:(fun x y -> Cons (x, y)) ~init:Nil
 
 let of_literal = function
-  | Ast.LInt i -> Int i
-  | Ast.LString s -> String s
+  | Ast.Literal.Int i -> Int i
+  | Ast.Literal.String s -> String s
 ;;
 
 let of_bool = function
@@ -73,10 +73,11 @@ let as_list_exn v =
 
 let rec quote =
   let open Ast in
+  let open Sexp in
   function
   | Atom s -> Sym (Ident.Id s)
-  | Literal (LInt i) -> Int i
-  | Literal (LString s) -> String s
+  | Literal (Literal.Int i) -> Int i
+  | Literal (Literal.String s) -> String s
   | List l -> list (List.map ~f:quote l)
   | Cons (x, y) -> Cons (quote x, quote y)
   | Quote v -> list [ Sym (Ident.Id ".quote"); quote v ]
@@ -87,15 +88,16 @@ let rec quote =
 
 let rec unquote =
   let open Ast in
+  let open Sexp in
   function
   | Nil -> List []
   | Cons (hd, tl) ->
     (match unquote tl with
-     | Ast.List t -> Ast.List (unquote hd :: t)
-     | expr -> Ast.Cons (unquote hd, expr))
-  | Int i -> Ast.Literal (LInt i)
-  | String s -> Ast.Literal (LString s)
-  | Sym (Ident.Id n) -> Ast.Atom n
+     | List t -> List (unquote hd :: t)
+     | expr -> Cons (unquote hd, expr))
+  | Int i -> Literal (Literal.Int i)
+  | String s -> Literal (Literal.String s)
+  | Sym (Ident.Id n) -> Atom n
   | Fun _ -> raise CantUnquoteFunctions
 ;;
 

@@ -3,13 +3,13 @@
 %token <string> STRING
 %token <int> INT
 
-%start <Ast.sexp list> sexp_eof
+%start <Ast.Sexp.t list> sexp_eof
 
 %%
 
 literal:
-  | s=STRING { Ast.LString s }
-  | i=INT { Ast.LInt i }
+  | s=STRING { Ast.Literal.String s }
+  | i=INT { Ast.Literal.Int i }
   ;
 
 cons:
@@ -18,21 +18,21 @@ cons:
   DOT
   e2=sexp;
   RPAR
-  { Ast.Cons (e1, e2) }
+  { Ast.Sexp.Cons (e1, e2) }
 
 sexp_eof:
   | es=list(sexp); EOF { es }
   ;
 
 sexp:
-  | a=ATOM { Ast.Atom a }
+  | a=ATOM { Ast.Sexp.Atom a }
   | c = cons { c }
-  | LPAR; es=list(sexp); RPAR { Ast.List es }
-  | lit=literal { Ast.Literal lit }
-  | QUOT; s=sexp { Ast.Quote s }
-  | BACKTICK; s=sexp { Ast.Quasiquote s }
-  | COMMA; s=sexp { Ast.Unquote s }
-  | COMMA_AT; s=sexp { Ast.UnquoteSplicing s }
+  | LPAR; es=list(sexp); RPAR { Ast.Sexp.List es }
+  | lit=literal { Ast.Sexp.Literal lit }
+  | QUOT; s=sexp { Ast.Sexp.Quote s }
+  | BACKTICK; s=sexp { Ast.Sexp.Quasiquote s }
+  | COMMA; s=sexp { Ast.Sexp.Unquote s }
+  | COMMA_AT; s=sexp { Ast.Sexp.UnquoteSplicing s }
   ;
 
 %%

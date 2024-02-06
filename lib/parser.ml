@@ -1,7 +1,7 @@
 open Core
 
 include Nice_parser.Make (struct
-    type result = Ast.sexp list
+    type result = Ast.Sexp.t list
     type token = Menhir_parser.token
 
     exception ParseError = Menhir_parser.Error
@@ -14,7 +14,7 @@ include Nice_parser.Make (struct
 let%test_module _ =
   (module struct
     let () = Printexc.record_backtrace false
-    let print_sexp s = Printf.printf !"%{sexp:Ast.sexp}" s
+    let print_sexp s = Printf.printf !"%{sexp:Ast.Sexp.t}" s
 
     let parse_and_print s =
       let toplevels = parse_string s in
@@ -53,18 +53,18 @@ let%test_module _ =
 
     let%expect_test "string literals" =
       parse_and_print {| "s" |};
-      [%expect {|(Literal (LString s))|}];
+      [%expect {|(Literal (String s))|}];
       parse_and_print {| "\n" |};
-      [%expect {|(Literal (LString "\n"))|}];
+      [%expect {|(Literal (String "\n"))|}];
       parse_and_print {| "\"" |};
-      [%expect {|(Literal (LString "\""))|}]
+      [%expect {|(Literal (String "\""))|}]
     ;;
 
     let%expect_test "integer literals" =
       parse_and_print "123";
-      [%expect {|(Literal (LInt 123))|}];
+      [%expect {|(Literal (Int 123))|}];
       parse_and_print "-123";
-      [%expect {|(Literal (LInt -123))|}]
+      [%expect {|(Literal (Int -123))|}]
     ;;
 
     let%expect_test "many literals" =
@@ -74,8 +74,8 @@ let%test_module _ =
       [%expect
         {|
       (List
-       ((Literal (LInt 1)) (Literal (LInt 2))
-        (List ((Atom s) (Literal (LString three)) (Atom four))))) |}]
+       ((Literal (Int 1)) (Literal (Int 2))
+        (List ((Atom s) (Literal (String three)) (Atom four))))) |}]
     ;;
 
     let%expect_test "fancy atoms" =
@@ -85,10 +85,9 @@ let%test_module _ =
       (List
        ((Atom +)
         (List
-         ((Atom /) (Literal (LInt 4)) (Literal (LInt 5))
-          (List ((Atom *) (Literal (LInt 7)) (Literal (LInt 8))))))
-        (Literal (LInt 9))
-        (List ((Atom namespace/do-a-thing) (Literal (LInt 10)))))) |}]
+         ((Atom /) (Literal (Int 4)) (Literal (Int 5))
+          (List ((Atom *) (Literal (Int 7)) (Literal (Int 8))))))
+        (Literal (Int 9)) (List ((Atom namespace/do-a-thing) (Literal (Int 10)))))) |}]
     ;;
 
     let%expect_test "quote" =
@@ -109,16 +108,15 @@ let%test_module _ =
 
     let%expect_test "quasiquote" =
       parse_and_print "`(1)";
-      [%expect {| (Quasiquote (List ((Literal (LInt 1))))) |}];
+      [%expect {| (Quasiquote (List ((Literal (Int 1))))) |}];
       parse_and_print "`(1 ,(+ 1 1) ,@(list 3 4))";
       [%expect
         {|
         (Quasiquote
          (List
-          ((Literal (LInt 1))
-           (Unquote (List ((Atom +) (Literal (LInt 1)) (Literal (LInt 1)))))
-           (UnquoteSplicing
-            (List ((Atom list) (Literal (LInt 3)) (Literal (LInt 4)))))))) |}]
+          ((Literal (Int 1))
+           (Unquote (List ((Atom +) (Literal (Int 1)) (Literal (Int 1)))))
+           (UnquoteSplicing (List ((Atom list) (Literal (Int 3)) (Literal (Int 4)))))))) |}]
     ;;
 
     (* Failed parsing *)
@@ -131,11 +129,11 @@ let%test_module _ =
 
     let%test_unit "parse and Ast.string_of_sexp round-trip" =
       Quickcheck.test
-        ~sexp_of:[%sexp_of: Ast.sexp]
-        Ast.quickcheck_generator_sexp
+        ~sexp_of:[%sexp_of: Ast.Sexp.t]
+        Ast.Sexp.quickcheck_generator
         ~f:(fun s ->
-          let rt = s |> Ast.string_of_sexp |> parse_string |> List.hd_exn in
-          [%test_eq: Ast.sexp] s rt)
+          let rt = s |> Ast.Sexp.to_string |> parse_string |> List.hd_exn in
+          [%test_eq: Ast.Sexp.t] s rt)
     ;;
   end)
 ;;

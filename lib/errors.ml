@@ -1,6 +1,6 @@
 open Core
 
-module Frame : sig
+module Frame = struct
   type t =
     | Expanding_macro of string
     | Calling_function of string
@@ -8,17 +8,9 @@ module Frame : sig
     | Evaluating_special_form of string
   [@@deriving sexp]
 
-  val string_of_t : t -> string
-  val string_of_trace : t Stack.t -> string
-end = struct
-  type t =
-    | Expanding_macro of string
-    | Calling_function of string
-    | Evaluating_expr of string
-    | Evaluating_special_form of string
-  [@@deriving sexp]
+  type trace = t Stack.t
 
-  let string_of_t =
+  let to_string =
     let open Printf in
     function
     | Expanding_macro s -> sprintf "       while expanding macro %s" s
@@ -27,9 +19,9 @@ end = struct
     | Evaluating_special_form s -> sprintf "       while evaluating special form %s" s
   ;;
 
-  let string_of_trace stack =
+  let trace_to_string stack =
     let open List.Monad_infix in
-    stack |> Stack.to_list >>| string_of_t |> String.concat ~sep:"\n"
+    stack |> Stack.to_list >>| to_string |> String.concat ~sep:"\n"
   ;;
 end
 
@@ -40,7 +32,7 @@ exception WrongArgCount of int * int [@@deriving sexp]
 exception CantUnquoteFunctions
 exception CantCompareFunctions
 exception UnquoteSplicingOutsideList
-exception WithTrace of exn * Frame.t Stack.t
+exception WithTrace of exn * Frame.trace
 
 let () =
   Stdlib.Printexc.register_printer (function exn ->
@@ -63,7 +55,7 @@ let () =
          sprintf
            "error: %s\n%s"
            (Stdlib.Printexc.to_string ex)
-           (Frame.string_of_trace trace)
+           (Frame.trace_to_string trace)
          |> Some
        | _ -> None
      with

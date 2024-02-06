@@ -96,10 +96,12 @@ let throw env err = raise (WithTrace (err, Stack.copy (Env.trace env)))
 let rec eval ?(env = stdlib ()) expr =
   Env.in_trace
     env
-    (Errors.Frame.Evaluating_expr (Ast.string_of_sexp expr))
+    (Errors.Frame.Evaluating_expr (Ast.Sexp.to_string expr))
     (fun () -> eval' ~env expr)
 
-and eval' ?(env = stdlib ()) = function
+and eval' ?(env = stdlib ()) =
+  let open Sexp in
+  function
   | Atom id ->
     let ident = Ident.Id id in
     (match Env.lookup env ident with
@@ -131,7 +133,7 @@ and eval' ?(env = stdlib ()) = function
       | Atom id :: t when String.is_prefix id ~prefix:"." ->
         Env.in_trace
           env
-          (Frame.Evaluating_special_form (Ast.string_of_sexp (List lst)))
+          (Frame.Evaluating_special_form (Ast.Sexp.to_string (List lst)))
           (fun () -> special_form (Ident.Id (String.drop_prefix id 1)) t)
       | _ -> None
     in
@@ -139,7 +141,7 @@ and eval' ?(env = stdlib ()) = function
       let macro = Env.lookup env id |> Option.value_exn |> Value.as_function in
       Env.in_trace
         env
-        (Frame.Expanding_macro (Ast.string_of_sexp (List lst)))
+        (Frame.Expanding_macro (Ast.Sexp.to_string (List lst)))
         (fun () -> List.map ~f:Value.quote args |> macro |> Value.unquote |> eval ~env)
     in
     let maybe_eval_macro = function
@@ -157,7 +159,7 @@ and eval' ?(env = stdlib ()) = function
       | Some f ->
         Env.in_trace
           env
-          (Frame.Calling_function (Ast.string_of_sexp (List lst)))
+          (Frame.Calling_function (Ast.Sexp.to_string (List lst)))
           (fun () -> (Value.as_function f) (List.drop vals 1)))
   | Cons (e1, e2) ->
     let v1 = eval ~env e1 in
@@ -174,8 +176,8 @@ and stdlib () =
 
 and quasiquote ~env = function
   | Atom s -> Value.Sym (Ident.Id s)
-  | Literal (LInt i) -> Int i
-  | Literal (LString s) -> String s
+  | Literal (Literal.Int i) -> Int i
+  | Literal (Literal.String s) -> String s
   | List [ Atom ".unquote"; v ] | Unquote v -> eval ~env v
   | List l ->
     Value.list
@@ -193,19 +195,19 @@ and quasiquote ~env = function
 and eval_vars ~env = Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
 
 and eval_def ~env = function
-  | [ Ast.Atom vname; expr ] ->
+  | [ Sexp.Atom vname; expr ] ->
     let value = eval ~env expr in
     Env.set_toplevel env (Ident.Id vname) value;
     Value.Nil
-  | [ arg1; _ ] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | [ arg1; _ ] -> throw env (WrongType (Sexp.type_name arg1, "atom"))
   | args -> throw env (WrongArgCount (List.length args, 2))
 
 and eval_lambda ~env = function
-  | [ ((Ast.Atom _ | Ast.List _) as arg); body ] ->
+  | [ ((Sexp.Atom _ | Sexp.List _) as arg); body ] ->
     let closure = Env.copy env in
     let rec bind_env v = function
-      | Ast.Atom argname -> Env.set closure (Ident.Id argname) v
-      | Ast.List argnames ->
+      | Sexp.Atom argname -> Env.set closure (Ident.Id argname) v
+      | Sexp.List argnames ->
         (match Value.as_list v with
          | Some l ->
            (match List.map2 argnames l ~f:(fun argname v -> bind_env v argname) with
@@ -220,23 +222,23 @@ and eval_lambda ~env = function
         Env.in_frame closure (fun () ->
           bind_env (Value.list args) arg;
           eval ~env:closure body))
-  | [ arg; _ ] -> throw env (WrongType (Ast.type_name arg, "list or atom"))
+  | [ arg; _ ] -> throw env (WrongType (Sexp.type_name arg, "list or atom"))
   | args -> throw env (WrongArgCount (List.length args, 2))
 
 and eval_make_macro ~env = function
-  | Ast.Atom vname :: [] ->
+  | Sexp.Atom vname :: [] ->
     Env.set_is_macro env (Ident.Id vname);
     Value.Nil
-  | arg1 :: [] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | arg1 :: [] -> throw env (WrongType (Sexp.type_name arg1, "atom"))
   | args -> throw env (WrongArgCount (List.length args, 1))
 
 and eval_is_macro ~env = function
-  | Ast.Atom vname :: [] -> vname |> Ident.of_s |> Env.is_macro env |> Value.of_bool
-  | arg1 :: [] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | Sexp.Atom vname :: [] -> vname |> Ident.of_s |> Env.is_macro env |> Value.of_bool
+  | arg1 :: [] -> throw env (WrongType (Sexp.type_name arg1, "atom"))
   | args -> throw env (WrongArgCount (List.length args, 1))
 
 and eval_macroexpand_1 ~env = function
-  | Ast.List (Ast.Atom name :: args) :: [] when Env.is_macro env (Ident.of_s name) ->
+  | Sexp.List (Sexp.Atom name :: args) :: [] when Env.is_macro env (Ident.of_s name) ->
     let macro =
       Env.lookup env (Ident.of_s name) |> Option.value_exn |> Value.as_function
     in
