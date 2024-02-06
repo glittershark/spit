@@ -7,8 +7,15 @@ let eval_filename filename =
     then Parser.parse_chan In_channel.stdin
     else Parser.parse_file filename
   in
-  let ress = List.map ~f:Evaluator.eval ast in
-  List.last ress |> Option.value ~default:Value.Nil |> Value.to_string |> print_endline
+  try
+    let ress = List.map ~f:Evaluator.eval ast in
+    List.last ress |> Option.value ~default:Value.Nil |> Value.to_string |> print_endline
+  with
+  | err ->
+    print_string (Stdlib.Printexc.to_string err);
+    Out_channel.newline stdout;
+    Out_channel.flush stdout;
+    exit 1
 ;;
 
 let repl () =

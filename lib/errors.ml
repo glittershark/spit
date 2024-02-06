@@ -1,5 +1,38 @@
 open Core
 
+module Frame : sig
+  type t =
+    | Expanding_macro of string
+    | Calling_function of string
+    | Evaluating_expr of string
+    | Evaluating_special_form of string
+  [@@deriving sexp]
+
+  val string_of_t : t -> string
+  val string_of_trace : t Stack.t -> string
+end = struct
+  type t =
+    | Expanding_macro of string
+    | Calling_function of string
+    | Evaluating_expr of string
+    | Evaluating_special_form of string
+  [@@deriving sexp]
+
+  let string_of_t =
+    let open Printf in
+    function
+    | Expanding_macro s -> sprintf "       while expanding macro %s" s
+    | Calling_function s -> sprintf "       while calling %s" s
+    | Evaluating_expr s -> sprintf "       while evaluating %s" s
+    | Evaluating_special_form s -> sprintf "       while evaluating special form %s" s
+  ;;
+
+  let string_of_trace stack =
+    let open List.Monad_infix in
+    stack |> Stack.to_list >>| string_of_t |> String.concat ~sep:"\n"
+  ;;
+end
+
 exception UnknownIdentifier of Ast.Ident.t [@@deriving sexp]
 exception WrongType of string * string [@@deriving sexp]
 exception WrongExprType of string * string [@@deriving sexp]
@@ -7,6 +40,7 @@ exception WrongArgCount of int * int [@@deriving sexp]
 exception CantUnquoteFunctions
 exception CantCompareFunctions
 exception UnquoteSplicingOutsideList
+exception WithTrace of exn * Frame.t Stack.t
 
 let () =
   Stdlib.Printexc.register_printer (function exn ->
@@ -25,6 +59,12 @@ let () =
        | CantCompareFunctions -> sprintf "Can't compare functions" |> Some
        | UnquoteSplicingOutsideList ->
          sprintf "unquote-splicing encountered outside quasiquote list" |> Some
+       | WithTrace (ex, trace) ->
+         sprintf
+           "error: %s\n%s"
+           (Stdlib.Printexc.to_string ex)
+           (Frame.string_of_trace trace)
+         |> Some
        | _ -> None
      with
      | _ -> None))

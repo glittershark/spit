@@ -1,5 +1,4 @@
 open Core
-open Ast
 open Errors
 
 type t =
@@ -7,7 +6,7 @@ type t =
   | Cons of (t * t)
   | Int of int
   | String of string
-  | Sym of Ident.t
+  | Sym of Ast.Ident.t
   | Fun of fn
 [@@deriving sexp]
 
@@ -21,7 +20,7 @@ let of_literal = function
 ;;
 
 let of_bool = function
-  | true -> Sym (Ident.of_s "t")
+  | true -> Sym (Ast.Ident.of_s "t")
   | false -> Nil
 ;;
 
@@ -72,7 +71,9 @@ let as_list_exn v =
   | None -> raise (wrong_type v "proper list")
 ;;
 
-let rec quote = function
+let rec quote =
+  let open Ast in
+  function
   | Atom s -> Sym (Ident.Id s)
   | Literal (LInt i) -> Int i
   | Literal (LString s) -> String s
@@ -132,7 +133,7 @@ let rec compare x y =
   | Int i1, Int i2 -> Int.compare i1 i2
   | Int _, (Nil | String _ | Cons _) -> 1
   | Int _, _ -> -1
-  | Sym i1, Sym i2 -> Ident.compare i1 i2
+  | Sym i1, Sym i2 -> Ast.Ident.compare i1 i2
   | Sym _, (Nil | String _ | Cons _ | Int _) -> 1
   | Sym _, _ -> -1
   | Fun _, _ -> raise CantCompareFunctions
@@ -144,7 +145,7 @@ let (gen : t Quickcheck.Generator.t) =
     [ singleton Nil
     ; (Int.gen_incl Int.min_value Int.max_value >>| fun i -> Int i)
     ; (String.gen' Char.gen_print >>| fun s -> String s)
-    ; (String.gen' Char.gen_alpha >>| Ident.of_s >>| fun id -> Sym id)
+    ; (String.gen' Char.gen_alpha >>| Ast.Ident.of_s >>| fun id -> Sym id)
     ]
 ;;
 

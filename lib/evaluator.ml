@@ -6,17 +6,18 @@ open Errors
 module Env = struct
   type vars = (Ident.t, Value.t) Hashtbl.Poly.t [@@deriving sexp]
 
-  type frame =
+  type var_frame =
     { vars : vars
     ; macros : Ident.t Hash_set.Poly.t
     }
   [@@deriving sexp]
 
-  let frame_of_vars vars = { vars; macros = Hash_set.create (module Ident) }
+  let var_frame_of_vars vars = { vars; macros = Hash_set.create (module Ident) }
 
   type t =
-    { vars : frame ref Stack.t
-    ; toplevel : frame ref
+    { vars : var_frame ref Stack.t
+    ; toplevel : var_frame ref
+    ; trace : Errors.Frame.t Stack.t
     }
   [@@deriving sexp]
 
@@ -47,7 +48,7 @@ module Env = struct
   ;;
 
   let push_frame env =
-    Stack.push env.vars (ref (frame_of_vars (Hashtbl.create (module Ident))))
+    Stack.push env.vars (ref (var_frame_of_vars (Hashtbl.create (module Ident))))
   ;;
 
   let pop_frame env = Stack.pop_exn env.vars |> ignore
@@ -58,11 +59,15 @@ module Env = struct
   ;;
 
   let of_vars vars_alist =
-    let toplevel = ref (frame_of_vars (Hashtbl.of_alist_exn (module Ident) vars_alist)) in
-    { vars = Stack.of_list [ toplevel ]; toplevel }
+    let toplevel =
+      ref (var_frame_of_vars (Hashtbl.of_alist_exn (module Ident) vars_alist))
+    in
+    { vars = Stack.of_list [ toplevel ]; toplevel; trace = Stack.create () }
   ;;
 
-  let copy env = { vars = Stack.copy env.vars; toplevel = env.toplevel }
+  let copy env = { env with vars = Stack.copy env.vars }
+  let in_trace env = Utils.in_frame env.trace
+  let trace env = env.trace
 
   let%test_module _ =
     (module struct
@@ -86,13 +91,20 @@ module Env = struct
 end
 
 let builtins = Env.of_vars Builtins.vars
+let throw env err = raise (WithTrace (err, Stack.copy (Env.trace env)))
 
-let rec eval ?(env = stdlib ()) = function
+let rec eval ?(env = stdlib ()) expr =
+  Env.in_trace
+    env
+    (Errors.Frame.Evaluating_expr (Ast.string_of_sexp expr))
+    (fun () -> eval' ~env expr)
+
+and eval' ?(env = stdlib ()) = function
   | Atom id ->
     let ident = Ident.Id id in
     (match Env.lookup env ident with
      | Some v -> v
-     | None -> raise (UnknownIdentifier ident))
+     | None -> throw env (UnknownIdentifier ident))
   | Literal lit -> Value.of_literal lit
   | List lst ->
     let rec special_form (Ident.Id form) args =
@@ -100,7 +112,7 @@ let rec eval ?(env = stdlib ()) = function
         args
         |> List.hd
         |> Option.value_or_thunk ~default:(fun () ->
-          raise (WrongArgCount (List.length args, 1)))
+          throw env (WrongArgCount (List.length args, 1)))
         |> f
         |> Some
       in
@@ -117,12 +129,18 @@ let rec eval ?(env = stdlib ()) = function
       | _ -> None
     and maybe_eval_special_form = function
       | Atom id :: t when String.is_prefix id ~prefix:"." ->
-        special_form (Ident.Id (String.drop_prefix id 1)) t
+        Env.in_trace
+          env
+          (Frame.Evaluating_special_form (Ast.string_of_sexp (List lst)))
+          (fun () -> special_form (Ident.Id (String.drop_prefix id 1)) t)
       | _ -> None
     in
     let eval_macro id args =
       let macro = Env.lookup env id |> Option.value_exn |> Value.as_function in
-      List.map ~f:Value.quote args |> macro |> Value.unquote |> eval ~env
+      Env.in_trace
+        env
+        (Frame.Expanding_macro (Ast.string_of_sexp (List lst)))
+        (fun () -> List.map ~f:Value.quote args |> macro |> Value.unquote |> eval ~env)
     in
     let maybe_eval_macro = function
       | Atom id :: args when Env.is_macro env (Ident.Id id) ->
@@ -136,7 +154,11 @@ let rec eval ?(env = stdlib ()) = function
       let vals = List.map ~f:(eval ~env) lst in
       match List.nth vals 0 with
       | None -> Value.Nil
-      | Some f -> (Value.as_function f) (List.drop vals 1))
+      | Some f ->
+        Env.in_trace
+          env
+          (Frame.Calling_function (Ast.string_of_sexp (List lst)))
+          (fun () -> (Value.as_function f) (List.drop vals 1)))
   | Cons (e1, e2) ->
     let v1 = eval ~env e1 in
     let v2 = eval ~env e2 in
@@ -166,7 +188,7 @@ and quasiquote ~env = function
   | Cons (x, y) -> Cons (quasiquote ~env x, quasiquote ~env y)
   | Quote v -> Value.list [ Value.Sym (Ident.Id ".quote"); quasiquote ~env v ]
   | Quasiquote v -> Value.list [ Sym (Ident.Id ".quasiquote"); quasiquote ~env v ]
-  | UnquoteSplicing _ -> raise UnquoteSplicingOutsideList
+  | UnquoteSplicing _ -> throw env UnquoteSplicingOutsideList
 
 and eval_vars ~env = Env.vars env |> List.map ~f:(fun id -> Value.Sym id) |> Value.list
 
@@ -175,8 +197,8 @@ and eval_def ~env = function
     let value = eval ~env expr in
     Env.set_toplevel env (Ident.Id vname) value;
     Value.Nil
-  | [ arg1; _ ] -> raise (WrongType (Ast.type_name arg1, "atom"))
-  | args -> raise (WrongArgCount (List.length args, 2))
+  | [ arg1; _ ] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | args -> throw env (WrongArgCount (List.length args, 2))
 
 and eval_lambda ~env = function
   | [ ((Ast.Atom _ | Ast.List _) as arg); body ] ->
@@ -189,8 +211,8 @@ and eval_lambda ~env = function
            (match List.map2 argnames l ~f:(fun argname v -> bind_env v argname) with
             | List.Or_unequal_lengths.Ok _ -> ()
             | List.Or_unequal_lengths.Unequal_lengths ->
-              raise (WrongArgCount (List.length l, List.length argnames)))
-         | None -> raise (WrongType (Value.type_name v, "proper list")))
+              throw env (WrongArgCount (List.length l, List.length argnames)))
+         | None -> throw env (WrongType (Value.type_name v, "proper list")))
       | _ -> failwith "unreachable"
     in
     Value.Fun
@@ -198,20 +220,20 @@ and eval_lambda ~env = function
         Env.in_frame closure (fun () ->
           bind_env (Value.list args) arg;
           eval ~env:closure body))
-  | [ arg; _ ] -> raise (WrongType (Ast.type_name arg, "list or atom"))
-  | args -> raise (WrongArgCount (List.length args, 2))
+  | [ arg; _ ] -> throw env (WrongType (Ast.type_name arg, "list or atom"))
+  | args -> throw env (WrongArgCount (List.length args, 2))
 
 and eval_make_macro ~env = function
   | Ast.Atom vname :: [] ->
     Env.set_is_macro env (Ident.Id vname);
     Value.Nil
-  | arg1 :: [] -> raise (WrongType (Ast.type_name arg1, "atom"))
-  | args -> raise (WrongArgCount (List.length args, 1))
+  | arg1 :: [] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | args -> throw env (WrongArgCount (List.length args, 1))
 
 and eval_is_macro ~env = function
   | Ast.Atom vname :: [] -> vname |> Ident.of_s |> Env.is_macro env |> Value.of_bool
-  | arg1 :: [] -> raise (WrongType (Ast.type_name arg1, "atom"))
-  | args -> raise (WrongArgCount (List.length args, 1))
+  | arg1 :: [] -> throw env (WrongType (Ast.type_name arg1, "atom"))
+  | args -> throw env (WrongArgCount (List.length args, 1))
 
 and eval_macroexpand_1 ~env = function
   | Ast.List (Ast.Atom name :: args) :: [] when Env.is_macro env (Ident.of_s name) ->
@@ -220,13 +242,13 @@ and eval_macroexpand_1 ~env = function
     in
     List.map ~f:Value.quote args |> macro
   | [ ast ] -> Value.quote ast
-  | args -> raise (WrongArgCount (List.length args, 1))
+  | args -> throw env (WrongArgCount (List.length args, 1))
 
 and eval_if ~env = function
   | [ cond_e; then_e; else_e ] ->
     let cond = eval ~env cond_e in
     if Value.is_truthy cond then eval ~env then_e else eval ~env else_e
-  | args -> raise (WrongArgCount (List.length args, 3))
+  | args -> throw env (WrongArgCount (List.length args, 3))
 ;;
 
 let%test_module _ =
