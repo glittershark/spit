@@ -53,7 +53,9 @@ let%test_module _ =
       parse_and_print {| "s" |};
       [%expect {|(Literal (LString s))|}];
       parse_and_print {| "\n" |};
-      [%expect {|(Literal (LString "\n"))|}]
+      [%expect {|(Literal (LString "\n"))|}];
+      parse_and_print {| "\"" |};
+      [%expect {|(Literal (LString "\""))|}]
     ;;
 
     let%expect_test "integer literals" =

@@ -72,6 +72,10 @@ and comment = parse
   | _ { comment lexbuf }
 
 and string = parse
+  | "\\\""
+    { Buffer.add_char string_buff '"';
+      string lexbuf }
+
   | '"' { () }
   | eof
       { is_in_string := false;
