@@ -51,6 +51,13 @@ let%test_module _ =
       [%expect {|(Literal (LString "\n"))|}]
     ;;
 
+    let%expect_test "integer literals" =
+      parse_and_print "123";
+      [%expect {|(Literal (LInt 123))|}];
+      parse_and_print "-123";
+      [%expect {|(Literal (LInt -123))|}]
+    ;;
+
     let%expect_test "many literals" =
       parse_and_print {|
       (1 2 (s "three" four))

@@ -13,10 +13,6 @@ let[@inline] illegal c =
 let string_buff = Buffer.create 256
 let is_in_string = ref false
 
-(* For int literals *)
-let cvt_int_literal s =
-  - int_of_string ("-" ^ s)
-
 }
 
 let whitespace = ' ' | '\t'
@@ -30,7 +26,7 @@ let ident_char = ident_start_char | [ '0'-'9' ]
 let ident = ident_char*
 
 let decimal_literal =
-  ['0'-'9'] ['0'-'9' '_']*
+  '-'? ['0'-'9'] ['0'-'9' '_']*
 
 let int_literal =
   decimal_literal
@@ -61,7 +57,7 @@ rule next_token = parse
 
   | int_literal as il
     { try
-        INT (cvt_int_literal il)
+        INT (int_of_string il)
       with Failure _ ->
         failwith "Integer literal overflow"
     }
