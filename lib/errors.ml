@@ -25,6 +25,10 @@ module Frame = struct
   ;;
 end
 
+let trace : Frame.t Stack.t = Stack.create ()
+let in_frame f = Utils.in_frame trace f
+let current_trace () = Stack.copy trace
+
 exception UnknownIdentifier of Ast.Ident.t [@@deriving sexp]
 exception WrongType of string * string [@@deriving sexp]
 exception WrongExprType of string * string [@@deriving sexp]
@@ -33,6 +37,9 @@ exception CantUnquoteFunctions
 exception CantCompareFunctions
 exception UnquoteSplicingOutsideList
 exception WithTrace of exn * Frame.trace
+
+let with_current_trace ex = WithTrace (ex, current_trace ())
+let throw ex = raise (with_current_trace ex)
 
 let () =
   Stdlib.Printexc.register_printer (function exn ->

@@ -3,7 +3,7 @@ open Errors
 
 module Helpers = struct
   let check_args_count n args =
-    if not (List.length args = n) then raise (WrongArgCount (List.length args, n))
+    if not (List.length args = n) then throw (WrongArgCount (List.length args, n))
   ;;
 
   let singleton f args =
@@ -38,7 +38,7 @@ let cdr =
 let plus args = Value.Int (List.sum (module Int) ~f:Value.as_int args)
 
 let minus = function
-  | [] -> raise (WrongArgCount (0, 1))
+  | [] -> throw (WrongArgCount (0, 1))
   | x :: xs ->
     Value.Int
       (List.fold_right xs ~f:(fun v acc -> acc - Value.as_int v) ~init:(Value.as_int x))

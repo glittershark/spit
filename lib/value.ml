@@ -36,27 +36,27 @@ let wrong_type v expected = WrongType (type_name v, expected)
 
 let as_cons = function
   | Cons (x, y) -> x, y
-  | v -> raise (wrong_type v "cons")
+  | v -> throw (wrong_type v "cons")
 ;;
 
 let as_int = function
   | Int i -> i
-  | v -> raise (wrong_type v "int")
+  | v -> throw (wrong_type v "int")
 ;;
 
 let as_string = function
   | String s -> s
-  | v -> raise (wrong_type v "string")
+  | v -> throw (wrong_type v "string")
 ;;
 
 let as_symbol = function
   | Sym s -> s
-  | v -> raise (wrong_type v "symbol")
+  | v -> throw (wrong_type v "symbol")
 ;;
 
 let as_function = function
   | Fun f -> f
-  | v -> raise (wrong_type v "function")
+  | v -> throw (wrong_type v "function")
 ;;
 
 let rec as_list = function
@@ -68,7 +68,7 @@ let rec as_list = function
 let as_list_exn v =
   match as_list v with
   | Some r -> r
-  | None -> raise (wrong_type v "proper list")
+  | None -> throw (wrong_type v "proper list")
 ;;
 
 let rec quote =
@@ -98,7 +98,7 @@ let rec unquote =
   | Int i -> Literal (Literal.Int i)
   | String s -> Literal (Literal.String s)
   | Sym (Ident.Id n) -> Atom n
-  | Fun _ -> raise CantUnquoteFunctions
+  | Fun _ -> throw CantUnquoteFunctions
 ;;
 
 let rec to_string = function
@@ -138,7 +138,7 @@ let rec compare x y =
   | Sym i1, Sym i2 -> Ast.Ident.compare i1 i2
   | Sym _, (Nil | String _ | Cons _ | Int _) -> 1
   | Sym _, _ -> -1
-  | Fun _, _ -> raise CantCompareFunctions
+  | Fun _, _ -> throw CantCompareFunctions
 ;;
 
 let (gen : t Quickcheck.Generator.t) =
