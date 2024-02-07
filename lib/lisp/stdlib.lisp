@@ -19,6 +19,12 @@
 (defmacro* defun* (name arg ret)
   `(def ,name (lambda ,arg ,ret)))
 
+(defmacro* defmacro args
+  (let ((name args & body) args)
+    `(defmacro* ,name __args__
+       (destructuring-bind ,args __args__
+         ,@body))))
+
 ;; Control flow
 
 (defmacro* if args
@@ -33,8 +39,46 @@
           (let* ,(cdr vars) ,body))
         ,(cadar vars))))
 
+;; Evaluate body in a context where vars is bound to vals, supporting
+;; destructuring
+(defmacro* destructuring-bind (vars vals body)
+  (cond
+    (nil? vars) nil
+
+    (symbol? vars)
+    `(let* ((,vars ,vals)) ,body)
+
+    (=* '& (car vars))
+    `(let* ((,(cadr vars) ,vals)) ,body)
+
+    (symbol? (car vars))
+    `(let* ((,(car vars) (car ,vals)))
+       (destructuring-bind
+           ,(cdr vars)
+           (cdr ,vals)
+         ,body))
+
+    `(destructuring-bind ,(car vars) ,())))
+
+(defmacro* let args
+  (let* ((vars (car args))
+         (body (cdr args)))
+    (if (nil? vars)
+        *(do body)
+        `(destructuring-bind
+             ,(caar vars)
+             ,(cadar vars)
+           (let ,(cdr vars) ,@body)))))
+
 (defmacro* do body
   `(last (list ,@body)))
+
+(defmacro* defun args
+  (let* ((name (car args))
+         (fn-args (cadr args))
+         (body (cddr args)))
+    `(defun* ,name __args__
+       (destructuring-bind ,fn-args __args__ ,@body))))
 
 ;; IO
 
@@ -48,12 +92,19 @@
    (print x)
    (print "\n")))
 
-
 ;; Comparisons
 
 (defun* <* (x1 x2) (neg? (compare x1 x2)))
 (defun* >* (x1 x2) (pos? (compare x1 x2)))
 (defun* =* (x1 x2) (zero? (compare x1 x2)))
+
+(defmacro* deftypecheck (name ty)
+  `(defun* ,name (x) (=* (.quote ,ty) (type x))))
+(deftypecheck list? list)
+(deftypecheck int? int)
+(deftypecheck string? string)
+(deftypecheck symbol? symbol)
+(deftypecheck function? function)
 
 ;; Lists
 
@@ -116,6 +167,11 @@
     (nil? l) nil
     (=* 1 (length l)) (car l)
     'else (last (cdr l))))
+
+(defun* map (f l)
+  (if (nil? l) l
+      (cons (f (car l))
+            (map f (cdr l)))))
 
 ;; Booleans
 

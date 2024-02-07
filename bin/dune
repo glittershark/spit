@@ -1,6 +1,7 @@
 (executable
  (public_name spit)
  (name main)
+ (modes byte exe)
  (libraries
   spit
   base

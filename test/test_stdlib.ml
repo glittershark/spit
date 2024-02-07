@@ -39,6 +39,15 @@ let%test_module "control flow" =
   end)
 ;;
 
+let%expect_test "binding" =
+  eval_print {|
+    (defun uncons (x & xs)
+      (list x xs))
+    (uncons 1 2 3)
+|};
+  [%expect {| (1 (2 3)) |}]
+;;
+
 let%test_module "io" =
   (module struct
     let%expect_test "print" =
