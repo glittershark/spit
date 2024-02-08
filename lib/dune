@@ -14,7 +14,7 @@
 
 (library
  (name spit)
- (libraries core nice_parser)
+ (libraries core core_unix core_unix.sys_unix nice_parser lambda-term)
  (preprocess
   (pps ppx_jane))
  (inline_tests))

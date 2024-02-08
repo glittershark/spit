@@ -19,6 +19,7 @@ depends: [
   "menhir"
   "nice_parser"
   "ppx_inline_test"
+  "lambda-term"
   "odoc" {with-doc}
 ]
 build: [

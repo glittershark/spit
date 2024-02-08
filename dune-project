@@ -30,7 +30,8 @@
   linenoise
   menhir
   nice_parser
-  ppx_inline_test)
+  ppx_inline_test
+  lambda-term)
  (tags
   (topics "to describe" your project)))
 

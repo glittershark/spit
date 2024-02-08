@@ -2,6 +2,7 @@ module Env : sig
   type t
 
   val lookup : t -> Ast.Ident.t -> Value.t option
+  val vars : t -> Ast.Ident.t list
   val set : t -> Ast.Ident.t -> Value.t -> unit
   val set_toplevel : t -> Ast.Ident.t -> Value.t -> unit
   val set_is_macro : t -> Ast.Ident.t -> unit

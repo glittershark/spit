@@ -2,6 +2,7 @@ module Ident : sig
   type t = Id of string [@@deriving compare, hash, sexp]
 
   val of_s : string -> t
+  val to_string : t -> string
 end
 
 module Literal : sig
